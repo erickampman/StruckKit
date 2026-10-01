@@ -1,4 +1,4 @@
-// StruckSynthPlugin.cpp — DSP side: DPF Plugin wrapper around the vendored PolygraphModular
+// StruckKitPlugin.cpp — DSP side: DPF Plugin wrapper around the vendored PolygraphModular
 // voice engine. DPF hands us MIDI 1.0 events + a parameter interface and generates the CLAP
 // (VST3/LV2) wrapper; all the synthesis is the same VoiceManager the self-tests exercise.
 //
@@ -6,14 +6,15 @@
 //   params       → VoiceManager::setParameter() (propagates to every voice, live)
 //   run()        → chunked VoiceManager::process()
 //
-// The v1 voice is Strike (exciter) → ModalBank (resonator) → Final; see buildDefaultPatch.
+// The voice is DrumKit → Final (see buildDefaultPatch): each note's pitch class picks a drum, and
+// every param is a DrumKit module item.
 
 #include "DistrhoPlugin.hpp"
 
 #include <algorithm>
 #include <memory>
 
-#include "StruckSynthParams.h"
+#include "StruckKitParams.h"
 
 #include "ParamAddressMacros.h"
 #include "VoiceManager.hpp"
@@ -23,12 +24,12 @@
 
 START_NAMESPACE_DISTRHO
 
-using namespace strucksynth;
+using namespace struckkit;
 
-class StruckSynthPlugin : public Plugin
+class StruckKitPlugin : public Plugin
 {
 public:
-    StruckSynthPlugin()
+    StruckKitPlugin()
         : Plugin(kParamCount, 0, 0) // params, programs, states
     {
         for (uint32_t i = 0; i < kParamCount; ++i)
@@ -38,16 +39,16 @@ public:
 
 protected:
     /* -- information ------------------------------------------------------ */
-    const char* getLabel()       const override { return "StruckSynth"; }
+    const char* getLabel()       const override { return "StruckKit"; }
     const char* getDescription() const override
     {
-        return "A modal-synthesis (struck-resonator) instrument built on the PolygraphModular voice engine.";
+        return "A modal-synthesis drum kit built on the PolygraphModular voice engine.";
     }
     const char* getMaker()    const override { return "Unlikelyware"; }
-    const char* getHomePage() const override { return "https://unlikelyware.com/strucksynth"; }
+    const char* getHomePage() const override { return "https://unlikelyware.com/struckkit"; }
     const char* getLicense()  const override { return "MIT"; }
-    uint32_t    getVersion()  const override { return d_version(0, 4, 0); }
-    int64_t     getUniqueId() const override { return d_cconst('S', 't', 'r', 'k'); }
+    uint32_t    getVersion()  const override { return d_version(0, 1, 0); }
+    int64_t     getUniqueId() const override { return d_cconst('S', 't', 'k', 't'); }
 
     /* -- init ------------------------------------------------------------- */
     void initAudioPort(bool input, uint32_t index, AudioPort& port) override
@@ -116,74 +117,29 @@ private:
     std::unique_ptr<VoiceManager> fVoiceManager;
     float                         fValues[kParamCount];
 
-    // Map a DPF param index onto its VoiceManager module item address. Globals handled specially
-    // in applyParam (voice mode + glide) have no direct address here.
+    // Map a DPF param index onto its DrumKit module item address.
     static AUParameterAddress vmAddress(uint32_t paramIndex)
     {
-        switch (paramIndex)
-        {
-        // Master output / stereo (ModalBank's own output stage)
-        case kParamLevel:          return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemLevel);
-        case kParamSpread:         return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemSpread);
-        // Strike (exciter)
-        case kParamStrikeType:     return MODULE_PARAM_ADDRESS(ModuleParamKindStrike, ModuleInstance1, StrikeParamItemType);
-        case kParamHardness:       return MODULE_PARAM_ADDRESS(ModuleParamKindStrike, ModuleInstance1, StrikeParamItemHardness);
-        case kParamVelToLevel:     return MODULE_PARAM_ADDRESS(ModuleParamKindStrike, ModuleInstance1, StrikeParamItemVelToLevel);
-        case kParamVelToHardness:  return MODULE_PARAM_ADDRESS(ModuleParamKindStrike, ModuleInstance1, StrikeParamItemVelToHardness);
-        case kParamContactMode:    return MODULE_PARAM_ADDRESS(ModuleParamKindStrike, ModuleInstance1, StrikeParamItemContactMode);
-        // ModalBank: object
-        case kParamPitch:          return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemPitch);
-        case kParamMaterial:       return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemMaterial);
-        case kParamModeCount:      return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemModeCount);
-        case kParamStretch:        return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemStretch);
-        // ModalBank: decay
-        case kParamDecayT60:       return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemDecayT60);
-        case kParamDampTilt:       return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemDampTilt);
-        case kParamDampBellAmount: return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemDampBellAmount);
-        case kParamDampBellCentre: return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemDampBellCentre);
-        case kParamDampBellWidth:  return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemDampBellWidth);
-        // ModalBank: timbre
-        case kParamStrikePosition: return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemStrikePosition);
-        case kParamBrightness:     return MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemBrightness);
-        default:                   return 0;
-        }
+        static constexpr DrumKitParamItem kItems[kParamCount] = {
+            DrumKitParamItemLevel,
+            DrumKitParamItemCrashSwell, DrumKitParamItemCrashTone,
+            DrumKitParamItemCrashDecay, DrumKitParamItemCrashBright,
+            DrumKitParamItemSnareTune,  DrumKitParamItemSnareBody,
+            DrumKitParamItemSnareBuzz,  DrumKitParamItemSnareSnares,
+            DrumKitParamItemTomTune,    DrumKitParamItemTomDecay,
+            DrumKitParamItemTomBright,  DrumKitParamItemTomThump,
+            DrumKitParamItemHatTune,    DrumKitParamItemHatBalance,
+            DrumKitParamItemHatBright,
+        };
+        if (paramIndex >= kParamCount)
+            return 0;
+        return MODULE_PARAM_ADDRESS(ModuleParamKindDrumKit, ModuleInstance1, kItems[paramIndex]);
     }
 
-    static bool isMono(float voiceModeValue)
-    {
-        return static_cast<int>(voiceModeValue + 0.5f) == 0; // 0 = Mono, 1 = poly
-    }
-
-    // Voice mode: Mono = 1 voice + VoiceManager legato (last-note note-stack); Poly = 10 voices.
-    // The modal voice has no amplitude envelope, so there is no envelope legato to configure.
-    void applyVoiceMode(float value)
-    {
-        if (!fVoiceManager)
-            return;
-        const bool mono = isMono(value);
-        setConfig(MIDIParamItemVoiceCount, mono ? 1.0f : 10.0f);
-        setConfig(MIDIParamItemLegato,     mono ? 1.0f : 0.0f);
-        applySlew();
-    }
-
-    // Pitch glide (Slew Rise == Fall). Only active in mono; in poly it is forced near-instant so
-    // each freshly allocated voice doesn't audibly scoop from its rest pitch.
-    void applySlew()
-    {
-        if (!fVoiceManager)
-            return;
-        const float rate = isMono(fValues[kParamVoiceMode]) ? fValues[kParamGlide] : 1e-8f;
-        fVoiceManager->setParameter(slew1RiseAddress, rate);
-        fVoiceManager->setParameter(slew1FallAddress, rate);
-    }
-
-    // Route one param to the engine: globals are handled here; everything else is a module param.
     void applyParam(uint32_t index, float value)
     {
         if (!fVoiceManager)
             return;
-        if (index == kParamGlide)     { applySlew();          return; }
-        if (index == kParamVoiceMode) { applyVoiceMode(value); return; }
         const AUParameterAddress a = vmAddress(index);
         if (a != 0)
             fVoiceManager->setParameter(a, value);
@@ -194,8 +150,10 @@ private:
     {
         fVoiceManager = std::make_unique<VoiceManager>(getSampleRate(), MODULE_BUFF_SIZE);
 
-        // VoiceManager params aren't zero-initialised. Voice count + legato are driven by the
-        // Voices param (applyVoiceMode, pushed in the loop below); set the rest here.
+        // VoiceManager params aren't zero-initialised. A kit is always polyphonic with a fixed
+        // voice count; no legato (every hit is a fresh strike).
+        setConfig(MIDIParamItemVoiceCount, kVoiceCount);
+        setConfig(MIDIParamItemLegato, 0);
         setConfig(MIDIParamItemChannelFilterValue, 0);
         setConfig(MIDIParamItemGroupFilterValue, 0);
         setConfig(MIDIParamItemVoiceStealAlgorithm, VoiceStealAlgorithmOldest);
@@ -223,7 +181,6 @@ private:
     }
 
     // Render [start,end) by chunking to the module block size; VoiceManager zeroes + sums voices.
-    // Stereo width comes from the ModalBank's own Spread param, so there is no output-bus M/S here.
     void renderSegment(float* outL, float* outR, uint32_t start, uint32_t end)
     {
         for (uint32_t p = start; p < end;)
@@ -234,12 +191,12 @@ private:
         }
     }
 
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StruckSynthPlugin)
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StruckKitPlugin)
 };
 
 Plugin* createPlugin()
 {
-    return new StruckSynthPlugin();
+    return new StruckKitPlugin();
 }
 
 END_NAMESPACE_DISTRHO

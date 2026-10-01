@@ -12,6 +12,7 @@
 #include "ModuleFactory.hpp"
 #include "pm_addresses.h"
 #include "ModuleInitSpecs.hpp"
+#include "ModuleSharedState.hpp"
 
 //#include "SinOscillatorModule.hpp"
 //#include "LPFilterModule.hpp"
@@ -40,7 +41,8 @@ static const std::vector<ModuleInitSpec> moduleInitSpecs = {
 };
 #endif /* 0 */
 
-void Voice::initializeModules(ModuleFactory *factory, PitchConverter *pitchConverter)
+void Voice::initializeModules(ModuleFactory *factory, PitchConverter *pitchConverter,
+                              ModuleSharedStateRegistry *sharedStateRegistry)
 {
     auto moduleInitSpecs = getModuleInitSpecs();
     moduleMap.reserveModules(moduleInitSpecs.size());
@@ -58,6 +60,14 @@ void Voice::initializeModules(ModuleFactory *factory, PitchConverter *pitchConve
                                             );
         if (module->pitchConverter == nullptr) {
             module->setPitchConverter(pitchConverter);  // this one's global
+        }
+
+        // Cross-voice shared object: one per PLACED module (keyed by base address, identical across
+        // voices), so every voice's copy of this module sees the same object. See ModuleSharedState.hpp.
+        if (spec.sharedStateCreateProc && sharedStateRegistry) {
+            module->sharedState =
+                sharedStateRegistry->getOrCreate(MODULE_BASE_ADDRESS(spec.id),
+                                                 spec.sharedStateCreateProc);
         }
         
         // not really cool to set here, but saves on redundancy

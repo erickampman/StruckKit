@@ -46,7 +46,7 @@ int main()
     ModuleFactory factory(sr, N);
     PitchConverter pc(440.0);
     Voice v(sr);
-    v.initializeModules(&factory, &pc);
+    v.initializeModules(&factory, &pc, nullptr);
     wirePatch(v);
 
     Module* osc  = v.getModule(ifsOsc1Address);

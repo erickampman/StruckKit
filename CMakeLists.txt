@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.17)
 
 # C is needed for DPF's pugl / dgl sources.
-project(StruckSynth VERSION 0.3.0 LANGUAGES C CXX)
+project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)          # PM framework uses std::numbers / std::span
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(STRUCKSYNTH_WERROR "Treat warnings as errors (framework + tests)" OFF)
-option(STRUCKSYNTH_PRESET_DUMP "Dev-only: press 'P' in the UI to dump the patch as JSON to \$HOME" OFF)
+option(STRUCKKIT_WERROR "Treat warnings as errors (framework + tests)" OFF)
+option(STRUCKKIT_PRESET_DUMP "Dev-only: press 'P' in the UI to dump the patch as JSON to \$HOME" OFF)
 
 # --- PM framework port -----------------------------------------------------
 # Vendored PolygraphModular framework + our shim/MIDI layer, as a static lib. Compiled with
@@ -33,6 +33,7 @@ add_library(pm_framework STATIC
     src/Module/ModalBankModule.cpp
     src/Module/ModalBank.cpp
     src/Module/StrikeModule.cpp
+    src/Module/DrumKitModule.cpp
     src/Module/ModuleFactory.cpp
     src/Voice/ModuleMap.cpp
     src/Voice/pm_module_specs.cpp
@@ -53,79 +54,79 @@ endif()
 # reconfiguring (CONFIGURE_DEPENDS re-globs on build, but a brand new file still needs `cmake -B
 # build -S .` rerun once to pick up the new match).
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-file(GLOB STRUCKSYNTH_PRESET_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Presets/*.json")
-set(STRUCKSYNTH_GENERATED_PRESETS_H "${CMAKE_BINARY_DIR}/generated/GeneratedPresets.h")
+file(GLOB STRUCKKIT_PRESET_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Presets/*.json")
+set(STRUCKKIT_GENERATED_PRESETS_H "${CMAKE_BINARY_DIR}/generated/GeneratedPresets.h")
 add_custom_command(
-    OUTPUT "${STRUCKSYNTH_GENERATED_PRESETS_H}"
+    OUTPUT "${STRUCKKIT_GENERATED_PRESETS_H}"
     COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tools/gen_presets.py"
-            ${STRUCKSYNTH_PRESET_FILES} -o "${STRUCKSYNTH_GENERATED_PRESETS_H}"
-    DEPENDS ${STRUCKSYNTH_PRESET_FILES} "${CMAKE_SOURCE_DIR}/tools/gen_presets.py"
+            ${STRUCKKIT_PRESET_FILES} -o "${STRUCKKIT_GENERATED_PRESETS_H}"
+    DEPENDS ${STRUCKKIT_PRESET_FILES} "${CMAKE_SOURCE_DIR}/tools/gen_presets.py"
     COMMENT "Generating embedded presets from Presets/*.json")
-add_custom_target(generate_presets DEPENDS "${STRUCKSYNTH_GENERATED_PRESETS_H}")
+add_custom_target(generate_presets DEPENDS "${STRUCKKIT_GENERATED_PRESETS_H}")
 
 # --- embedded resources: Resources/* compiled in as raw bytes ----------------------------
 # Uses DPF's own res2c.py (ships in the dpf/ submodule) to embed the logo PNG's raw file bytes;
 # NanoVG's createImageFromMemory() decodes it at UI-construction time. No filesystem dependency
 # on the resource file once built — same reasoning as the preset codegen above.
-set(STRUCKSYNTH_RESOURCES_HPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.hpp")
-set(STRUCKSYNTH_RESOURCES_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.cpp")
-file(GLOB STRUCKSYNTH_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Resources/*")
+set(STRUCKKIT_RESOURCES_HPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.hpp")
+set(STRUCKKIT_RESOURCES_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.cpp")
+file(GLOB STRUCKKIT_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Resources/*")
 add_custom_command(
-    OUTPUT "${STRUCKSYNTH_RESOURCES_HPP}" "${STRUCKSYNTH_RESOURCES_CPP}"
+    OUTPUT "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}"
     COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/dpf/utils/res2c.py"
             EmbeddedResources "${CMAKE_SOURCE_DIR}/Resources" "${CMAKE_BINARY_DIR}/generated"
-    DEPENDS ${STRUCKSYNTH_RESOURCE_FILES} "${CMAKE_SOURCE_DIR}/dpf/utils/res2c.py"
+    DEPENDS ${STRUCKKIT_RESOURCE_FILES} "${CMAKE_SOURCE_DIR}/dpf/utils/res2c.py"
     COMMENT "Embedding Resources/* as compiled-in data")
-add_custom_target(generate_resources DEPENDS "${STRUCKSYNTH_RESOURCES_HPP}" "${STRUCKSYNTH_RESOURCES_CPP}")
+add_custom_target(generate_resources DEPENDS "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}")
 
 # --- the plugin: CLAP + OpenGL UI, built with DPF --------------------------
 # DPF (vendored submodule) owns the plugin wrapper and generates the .clap from our DSP + UI
 # subclasses; the DSP side drives pm_framework's VoiceManager. The four ADSR knobs route to
 # the envelope module live.
 add_subdirectory(dpf)
-dpf_add_plugin(StruckSynth
+dpf_add_plugin(StruckKit
     TARGETS clap
     UI_TYPE opengl
     FILES_DSP
-        plugin/StruckSynthPlugin.cpp
+        plugin/StruckKitPlugin.cpp
     FILES_UI
-        src/UI/StruckSynthUI.cpp)
-# So both DSP and UI sources find DistrhoPluginInfo.h + StruckSynthParams.h.
-target_include_directories(StruckSynth PUBLIC plugin)
+        src/UI/StruckKitUI.cpp)
+# So both DSP and UI sources find DistrhoPluginInfo.h + StruckKitParams.h.
+target_include_directories(StruckKit PUBLIC plugin)
 # The DSP side pulls in the vendored engine.
-target_link_libraries(StruckSynth-dsp PUBLIC pm_framework)
+target_link_libraries(StruckKit-dsp PUBLIC pm_framework)
 # The UI's IFSControl pad draws the true DSP waveform via IFSCore (computeIFSWavetable), so it
 # links pm_framework too. Static-lib symbol extraction dedups it in the final .clap.
-target_link_libraries(StruckSynth-ui PUBLIC pm_framework)
-# Generated preset array (see the codegen step above) — must exist before StruckSynthUI.cpp compiles.
-add_dependencies(StruckSynth-ui generate_presets)
-target_include_directories(StruckSynth-ui PRIVATE "${CMAKE_BINARY_DIR}/generated")
+target_link_libraries(StruckKit-ui PUBLIC pm_framework)
+# Generated preset array (see the codegen step above) — must exist before StruckKitUI.cpp compiles.
+add_dependencies(StruckKit-ui generate_presets)
+target_include_directories(StruckKit-ui PRIVATE "${CMAKE_BINARY_DIR}/generated")
 # Embedded logo bytes — the generated .cpp defines the data the .hpp declares.
-add_dependencies(StruckSynth-ui generate_resources)
-target_sources(StruckSynth-ui PRIVATE "${STRUCKSYNTH_RESOURCES_CPP}")
+add_dependencies(StruckKit-ui generate_resources)
+target_sources(StruckKit-ui PRIVATE "${STRUCKKIT_RESOURCES_CPP}")
 # DPF may default to an older standard; the DSP glue includes C++20 framework headers.
-set_target_properties(StruckSynth-dsp StruckSynth-ui PROPERTIES
+set_target_properties(StruckKit-dsp StruckKit-ui PROPERTIES
     CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 # Dev-only JSON patch dumper (keystroke → file); compiled out of release builds.
-if(STRUCKSYNTH_PRESET_DUMP)
-    target_compile_definitions(StruckSynth-ui PRIVATE STRUCKSYNTH_PRESET_DUMP=1)
+if(STRUCKKIT_PRESET_DUMP)
+    target_compile_definitions(StruckKit-ui PRIVATE STRUCKKIT_PRESET_DUMP=1)
 endif()
 
 # --- install: symlink the built .clap into the user CLAP dir ---------------
-# Runs automatically after StruckSynth-clap is (re)built, so the plugin in the
+# Runs automatically after StruckKit-clap is (re)built, so the plugin in the
 # user CLAP dir is always a symlink pointing at the freshest build.
 # create_symlink replaces any existing file or link, so this is idempotent.
 if(APPLE)
-    set(STRUCKSYNTH_CLAP_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
+    set(STRUCKKIT_CLAP_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
 else()
-    set(STRUCKSYNTH_CLAP_DIR "$ENV{HOME}/.clap")
+    set(STRUCKKIT_CLAP_DIR "$ENV{HOME}/.clap")
 endif()
-add_custom_command(TARGET StruckSynth-clap POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKSYNTH_CLAP_DIR}"
+add_custom_command(TARGET StruckKit-clap POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_CLAP_DIR}"
     COMMAND ${CMAKE_COMMAND} -E create_symlink
-        "${CMAKE_BINARY_DIR}/bin/StruckSynth.clap"
-        "${STRUCKSYNTH_CLAP_DIR}/StruckSynth.clap"
-    COMMENT "Symlinking StruckSynth.clap into ${STRUCKSYNTH_CLAP_DIR}"
+        "${CMAKE_BINARY_DIR}/bin/StruckKit.clap"
+        "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
+    COMMENT "Symlinking StruckKit.clap into ${STRUCKKIT_CLAP_DIR}"
     VERBATIM)
 
 # --- self-tests (the framework; headless, no DAW) --------------------------
@@ -160,15 +161,18 @@ target_link_libraries(pm-modroute-test PRIVATE pm_framework)
 add_executable(pm-voicemanager-test test/pm_voicemanager_test.cpp)
 target_link_libraries(pm-voicemanager-test PRIVATE pm_framework)
 
+add_executable(pm-drumkit-test test/pm_drumkit_test.cpp)
+target_link_libraries(pm-drumkit-test PRIVATE pm_framework)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     # pm-selftest only pulls in light headers → fully strict (optionally -Werror in CI).
     target_compile_options(pm-selftest PRIVATE -Wall -Wextra)
-    if(STRUCKSYNTH_WERROR)
+    if(STRUCKKIT_WERROR)
         target_compile_options(pm-selftest PRIVATE -Werror)
     endif()
     # tests that pull in vendored headers → relaxed (unused params in inline methods).
     foreach(t pm-module-test pm-sinosc-test pm-ifscore-test pm-adsr-test pm-modules-test pm-factory-test
-              pm-voice-test pm-voicemanager-test pm-modroute-test)
+              pm-voice-test pm-voicemanager-test pm-modroute-test pm-drumkit-test)
         target_compile_options(${t} PRIVATE -Wall -Wno-unknown-pragmas -Wno-unused-parameter)
     endforeach()
 endif()
@@ -203,3 +207,6 @@ set_tests_properties(pm-modroute PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
 
 add_test(NAME pm-voicemanager COMMAND pm-voicemanager-test)
 set_tests_properties(pm-voicemanager PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
+
+add_test(NAME pm-drumkit COMMAND pm-drumkit-test)
+set_tests_properties(pm-drumkit PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")

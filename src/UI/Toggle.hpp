@@ -2,8 +2,8 @@
 // param with Widget::setId(); clicking flips it and reports via the Callback. Like the other
 // custom widgets it bounds-checks onMouse (DPF offers the event to every sibling).
 
-#ifndef STRUCKSYNTH_TOGGLE_HPP
-#define STRUCKSYNTH_TOGGLE_HPP
+#ifndef STRUCKKIT_TOGGLE_HPP
+#define STRUCKKIT_TOGGLE_HPP
 
 #include "NanoVG.hpp"
 
@@ -87,4 +87,4 @@ private:
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_TOGGLE_HPP
+#endif // STRUCKKIT_TOGGLE_HPP

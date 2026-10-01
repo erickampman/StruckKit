@@ -51,7 +51,7 @@ int main() {
    ModuleFactory factory(sr, N);
    PitchConverter pitchConv(440.0);
    Voice v(sr);
-   v.initializeModules(&factory, &pitchConv);
+   v.initializeModules(&factory, &pitchConv, nullptr);
    wirePatch(v);
 
    float L[512], R[512];

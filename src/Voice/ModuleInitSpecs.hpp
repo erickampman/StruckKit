@@ -22,6 +22,9 @@ struct ModuleInitSpec {
     ModuleParamProc paramProc = nullptr;
     ModuleResetProc resetProc = nullptr;
     ModuleSampleRateProc sampleRateProc = nullptr;
+    // Optional: if set, the module gets one cross-voice shared object per placement (see
+    // ModuleSharedState.hpp). Added last so existing positional initializers keep compiling.
+    ModuleSharedStateCreateProc sharedStateCreateProc = nullptr;
 };
 
 const std::vector<ModuleInitSpec>& getModuleInitSpecs();

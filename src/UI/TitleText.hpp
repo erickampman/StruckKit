@@ -1,9 +1,9 @@
-// TitleText.hpp — the "StruckSynth" wordmark: "Struck" and "Synth" drawn in two accent colors using the
+// TitleText.hpp — the "StruckKit" wordmark: "Struck" and "Kit" drawn in two accent colors using the
 // embedded Almendra display font (see EmbeddedResources.hpp / Resources/Almendra-Regular.ttf).
 // Sits between the logo and the Preset dropdown in the top strip. Not interactive.
 
-#ifndef STRUCKSYNTH_TITLETEXT_HPP
-#define STRUCKSYNTH_TITLETEXT_HPP
+#ifndef STRUCKKIT_TITLETEXT_HPP
+#define STRUCKKIT_TITLETEXT_HPP
 
 #include "NanoVG.hpp"
 
@@ -33,7 +33,7 @@ protected:
         fillColor(fColorA);
         text(0.0f, baseY, fPartA.c_str(), nullptr);
 
-        // "Synth" starts right where "Struck" actually ended (measured, not assumed), so the two
+        // "Kit" starts right where "Struck" actually ended (measured, not assumed), so the two
         // colors read as one continuous word rather than two separately-kerned pieces.
         Rectangle<float> boundsA;
         textBounds(0.0f, baseY, fPartA.c_str(), nullptr, boundsA);
@@ -47,11 +47,11 @@ private:
     Color fColorA, fColorB;
     float fFontSize = 48.0f;
     const std::string fPartA = "Struck";
-    const std::string fPartB = "Synth";
+    const std::string fPartB = "Kit";
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TitleText)
 };
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_TITLETEXT_HPP
+#endif // STRUCKKIT_TITLETEXT_HPP

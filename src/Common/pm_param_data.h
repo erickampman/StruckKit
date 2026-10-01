@@ -23,5 +23,6 @@ extern const ModuleParamConstantsGroup slewModuleConstantsGroup;
 extern const ModuleParamConstantsGroup pitchConverterModuleConstantsGroup;
 extern const ModuleParamConstantsGroup strikeConstantsGroup;
 extern const ModuleParamConstantsGroup modalBankConstantsGroup;
+extern const ModuleParamConstantsGroup drumKitConstantsGroup;
 
 #endif // PM_PARAM_DATA_H

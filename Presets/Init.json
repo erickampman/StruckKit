@@ -1,36 +1,36 @@
 {
-  "app": { "name": "StruckSynth", "version": "1.0.0" },
-  "plugin": { "format": "clap", "id": "com.unlikelyware.strucksynth" },
+  "app": { "name": "StruckKit", "version": "1.0.0" },
+  "plugin": { "format": "clap", "id": "com.unlikelyware.struckkit" },
   "meta": { "author": "unlikelyware", "name": "Init" },
-  "schema": "strucksynth.preset",
+  "schema": "struckkit.preset",
   "schemaVersion": 1,
   "state": {
     "parameterState": {
-      "Global": {
-        "voiceMode": "1",
-        "glide": "0.010000",
-        "level": "0.500000",
-        "spread": "0.300000"
+      "Master": {
+        "level": "1.000000"
       },
-      "Strike": {
-        "type": "0",
-        "hardness": "0.300000",
-        "velToLevel": "1.000000",
-        "velToHardness": "0.500000",
-        "contactMode": "0"
+      "Crash": {
+        "swell": "0.500000",
+        "tone": "0.600000",
+        "decay": "0.660000",
+        "bright": "0.860000"
       },
-      "ModalBank": {
-        "pitch": "0.000000",
-        "material": "1",
-        "modeCount": "64",
-        "stretch": "9",
-        "decayT60": "2.000000",
-        "dampTilt": "0.900000",
-        "dampBellAmount": "0.000000",
-        "dampBellCentre": "2.000000",
-        "dampBellWidth": "0.400000",
-        "strikePosition": "0.250000",
-        "brightness": "0.000000"
+      "Snare": {
+        "tune": "0.470000",
+        "body": "0.350000",
+        "buzz": "0.400000",
+        "snares": "0.550000"
+      },
+      "Toms": {
+        "tune": "0.490000",
+        "decay": "0.500000",
+        "bright": "0.500000",
+        "thump": "0.500000"
+      },
+      "Hats": {
+        "tune": "0.520000",
+        "balance": "0.650000",
+        "bright": "0.450000"
       }
     }
   }

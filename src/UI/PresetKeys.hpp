@@ -1,44 +1,39 @@
 // PresetKeys.hpp — the plugin-param ↔ preset-JSON-field mapping, shared by the dev-only JSON
 // dumper (PresetDump.hpp) and the always-on preset loader (GeneratedPresets.h resolution in
-// StruckSynthUI.cpp). Kept in its own always-compiled header (not gated by STRUCKSYNTH_PRESET_DUMP)
+// StruckKitUI.cpp). Kept in its own always-compiled header (not gated by STRUCKKIT_PRESET_DUMP)
 // since preset loading must work in every build, not just dev builds.
 
-#ifndef STRUCKSYNTH_PRESETKEYS_HPP
-#define STRUCKSYNTH_PRESETKEYS_HPP
+#ifndef STRUCKKIT_PRESETKEYS_HPP
+#define STRUCKKIT_PRESETKEYS_HPP
 
-#include "StruckSynthParams.h"
+#include "StruckKitParams.h"
 
-namespace strucksynth {
+namespace struckkit {
 
 struct PresetKey { const char* module; const char* item; };
 
-// One entry per param, index-aligned to ParamIndex. Three logical modules: Global voice controls,
-// the Strike exciter, and the ModalBank resonator (object / decay / timbre). Items are stable
-// preset-file keys — they only need to agree between the dumper and the loader, not with any DSP
-// serialization.
+// One entry per param, index-aligned to ParamIndex. One logical module per drum family plus
+// Master. Items are stable preset-file keys — they only need to agree between the dumper and the
+// loader, not with any DSP serialization.
 static constexpr PresetKey kPresetKeys[kParamCount] = {
-   /*VoiceMode*/       {"Global",    "voiceMode"},
-   /*Glide*/           {"Global",    "glide"},
-   /*Level*/           {"Global",    "level"},
-   /*Spread*/          {"Global",    "spread"},
-   /*StrikeType*/      {"Strike",    "type"},
-   /*Hardness*/        {"Strike",    "hardness"},
-   /*VelToLevel*/      {"Strike",    "velToLevel"},
-   /*VelToHardness*/   {"Strike",    "velToHardness"},
-   /*ContactMode*/     {"Strike",    "contactMode"},
-   /*Pitch*/           {"ModalBank", "pitch"},
-   /*Material*/        {"ModalBank", "material"},
-   /*ModeCount*/       {"ModalBank", "modeCount"},
-   /*Stretch*/         {"ModalBank", "stretch"},
-   /*DecayT60*/        {"ModalBank", "decayT60"},
-   /*DampTilt*/        {"ModalBank", "dampTilt"},
-   /*DampBellAmount*/  {"ModalBank", "dampBellAmount"},
-   /*DampBellCentre*/  {"ModalBank", "dampBellCentre"},
-   /*DampBellWidth*/   {"ModalBank", "dampBellWidth"},
-   /*StrikePosition*/  {"ModalBank", "strikePosition"},
-   /*Brightness*/      {"ModalBank", "brightness"},
+   /*Level*/        {"Master", "level"},
+   /*CrashSwell*/   {"Crash",  "swell"},
+   /*CrashTone*/    {"Crash",  "tone"},
+   /*CrashDecay*/   {"Crash",  "decay"},
+   /*CrashBright*/  {"Crash",  "bright"},
+   /*SnareTune*/    {"Snare",  "tune"},
+   /*SnareBody*/    {"Snare",  "body"},
+   /*SnareBuzz*/    {"Snare",  "buzz"},
+   /*SnareSnares*/  {"Snare",  "snares"},
+   /*TomTune*/      {"Toms",   "tune"},
+   /*TomDecay*/     {"Toms",   "decay"},
+   /*TomBright*/    {"Toms",   "bright"},
+   /*TomThump*/     {"Toms",   "thump"},
+   /*HatTune*/      {"Hats",   "tune"},
+   /*HatBalance*/   {"Hats",   "balance"},
+   /*HatBright*/    {"Hats",   "bright"},
 };
 
-} // namespace strucksynth
+} // namespace struckkit
 
-#endif // STRUCKSYNTH_PRESETKEYS_HPP
+#endif // STRUCKKIT_PRESETKEYS_HPP

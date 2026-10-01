@@ -25,6 +25,8 @@ using TimePoint = Clock::time_point;
 
 #include "VoiceStateManager.hpp"
 
+class ModuleSharedStateRegistry;   // ModuleSharedState.hpp — cross-voice shared state (pointer param only)
+
 
 #define LOG_VOICE(fmt, ...) \
     if (Voice::loggingEnabled) \
@@ -72,7 +74,8 @@ public:
     Module *getModule(AUParameterAddress paramAddress);
     Module *getFinalModule();
 
-	void initializeModules(ModuleFactory *factory, PitchConverter *pitchConverter);
+	void initializeModules(ModuleFactory *factory, PitchConverter *pitchConverter,
+	                       ModuleSharedStateRegistry *sharedStateRegistry);
 //	void initializeModule(const AUParameterAddress moduleAddress, const ModuleParamConstantsGroup *constantsGroup);
 	
 	// currently, connectModules can't fail.

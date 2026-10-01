@@ -11,8 +11,8 @@
 // still reach the nested controls: the default Widget::onMouse forwards to subwidgets, and
 // this box does not override it.
 
-#ifndef STRUCKSYNTH_GROUPBOX_HPP
-#define STRUCKSYNTH_GROUPBOX_HPP
+#ifndef STRUCKKIT_GROUPBOX_HPP
+#define STRUCKKIT_GROUPBOX_HPP
 
 #include "NanoVG.hpp"
 
@@ -121,4 +121,4 @@ private:
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_GROUPBOX_HPP
+#endif // STRUCKKIT_GROUPBOX_HPP

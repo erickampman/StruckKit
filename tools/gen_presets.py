@@ -5,7 +5,7 @@ dependency (no reliance on CLAP's own preset-discovery extension either — this
 in-UI dropdown the plugin manages itself).
 
 Each preset JSON is flattened from its nested {"state": {"parameterState": {module: {item:
-"value"}}}} shape into a flat list of ("module.item", float) pairs. The C++ side (StruckSynthUI.cpp)
+"value"}}}} shape into a flat list of ("module.item", float) pairs. The C++ side (StruckKitUI.cpp)
 resolves each plugin parameter to its "module.item" key via the same kPresetKeys table that
 PresetDump.hpp uses to *write* these files (see src/UI/PresetKeys.hpp), and looks that key up in
 the selected preset's flattened list. Deliberately dumb on this end: this script doesn't need to
@@ -46,7 +46,7 @@ def emit_header(presets: list[tuple[str, list[tuple[str, float]]]]) -> str:
         "// Do not edit by hand; edit the source JSON and rebuild instead.",
         "#pragma once",
         "",
-        "namespace strucksynth {",
+        "namespace struckkit {",
         "",
         "struct PresetValue { const char* key; float value; };",
         "struct PresetEntry { const char* name; const PresetValue* values; int count; };",
@@ -68,7 +68,7 @@ def emit_header(presets: list[tuple[str, list[tuple[str, float]]]]) -> str:
     lines.append("};")
     lines.append(f"static const int kPresetCount = {len(presets)};")
     lines.append("")
-    lines.append("} // namespace strucksynth")
+    lines.append("} // namespace struckkit")
     lines.append("")
     return "\n".join(lines)
 

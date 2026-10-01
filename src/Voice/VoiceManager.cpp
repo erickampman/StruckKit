@@ -31,11 +31,11 @@ void VoiceManager::initialize(double sampleRate) {
 
 void VoiceManager::initializeVoices(PitchConverter *pitchConverter)
 {
-    referenceVoice->initializeModules(moduleFactory.get(), pitchConverter);
+    referenceVoice->initializeModules(moduleFactory.get(), pitchConverter, &sharedStateRegistry);
     buildDefaultPatch(*referenceVoice);
     
 	for (auto& voice : voices) {
-		voice->initializeModules(moduleFactory.get(), pitchConverter);
+		voice->initializeModules(moduleFactory.get(), pitchConverter, &sharedStateRegistry);
 		buildDefaultPatch(*voice);
 	}
 }
@@ -47,6 +47,7 @@ void VoiceManager::reset() {
     for (auto& voice : voices) {
         voice->reset();
     }
+    sharedStateRegistry.reset();   // soft reset: clears state, keeps objects alive
 }
 
 // This occurs at a bad time in initialization. I want to defer this until
@@ -55,26 +56,20 @@ void VoiceManager::reset() {
 void VoiceManager::buildDefaultPatch(Voice& voice)
 {
 #if HAS_DEFAULT_PATCH
-    // StruckSynth v1 voice: MIDI note-on -> Strike (exciter) -> ModalBank (resonator) -> Final.
-    // No VCA envelope: the bank's own T60 decay IS the amplitude envelope, and the voice frees
-    // on silence (VoiceStateManager Active -> Deactivating -> Inactive), so the ring-down
-    // survives note-off. Pitch tracks the note through the shared Slew (glide). The IFS / Sine /
-    // LPF / CVMixer / env modules stay instantiated (module specs) but unconnected here.
-    Module* pitchConverterModule = voice.getModule(pitchConverter1Address);
-    Module* slewModule           = voice.getModule(slew1Address);
-    Module* strikeModule         = voice.getModule(strike1Address);
-    Module* modalBankModule      = voice.getModule(modalBank1Address);
-    Module* finalModule          = voice.getModule(finalAddress);
+    // StruckKit voice (step 2: straight PMU DrumKit port): MIDI note-on -> DrumKit -> Final. The
+    // note's pitch class picks the drum; there is no VCA envelope — each drum renders its own decay
+    // and the voice frees on silence (VoiceStateManager Active -> Deactivating -> Inactive), so the
+    // hit rings out past note-off. Hi-hat choke is cross-voice via DrumKit's shared ChokeGroupState.
+    //
+    // Strike / ModalBank (and the inherited IFS / Sine / LPF / env modules) stay instantiated but
+    // unconnected; step 3 swaps DrumKit's additive drum bodies for ModalBank resonators.
+    Module* drumKitModule = voice.getModule(drumKit1Address);
+    Module* finalModule   = voice.getModule(finalAddress);
 
-    //                       upstream            -> downstream      (downstream input port)
+    //                       upstream       -> downstream   (downstream input port)
     ++(finalModule->activeCount);
-    voice.connectModules(modalBankModule,      finalModule,     finalInputAddress);
-    // Strike excites the bank. connectModules bumps Strike's activeCount, so it receives the
-    // MIDI note-on (velocity -> strike strength) that ModalBank itself does not handle.
-    voice.connectModules(strikeModule,         modalBankModule, modalBank1InputAddress);
-    // Note pitch -> Slew (glide) -> the bank's pitch-tracking input (octaves re A440).
-    voice.connectModules(pitchConverterModule, slewModule,      slew1InputAddress);
-    voice.connectModules(slewModule,           modalBankModule, modalBank1PitchInputAddress);
+    // connectModules bumps DrumKit's activeCount, so it receives MIDI note-ons.
+    voice.connectModules(drumKitModule, finalModule, finalInputAddress);
 #else
     // do nothing
 #endif

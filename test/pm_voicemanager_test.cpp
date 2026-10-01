@@ -63,10 +63,10 @@ int main() {
    }
    CHECK(chordPeak > 0.05f, "chord produces audio");
 
-   // Release all notes → voices ring down, then free on silence. A struck ModalBank keeps
-   // sounding after note-off (its T60 decay IS the envelope), so a voice only goes Inactive
-   // once its output falls below the 1e-5 RMS silence threshold. At the default T60 of 2.0 s
-   // that is ~3.3 s (~310 blocks of 512 @ 48 kHz); render 600 for margin.
+   // Release all notes → voices ring down, then free on silence. A struck drum keeps sounding
+   // after note-off (its own decay IS the envelope), so a voice only goes Inactive once its
+   // output falls below the 1e-5 RMS silence threshold. With the DrumKit patch, C/E/G are kick,
+   // snare and low tom, all gone well inside the 600 blocks (~6.4 s @ 48 kHz) rendered here.
    vm.handleMIDIMessage(pm::makeNoteOff(60));
    vm.handleMIDIMessage(pm::makeNoteOff(64));
    vm.handleMIDIMessage(pm::makeNoteOff(67));

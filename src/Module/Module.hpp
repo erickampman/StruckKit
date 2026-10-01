@@ -66,6 +66,12 @@ enum class ModuleQueryType {
 
 typedef bool (*ModuleQueryProc)(Module* module, void* state, ModuleQueryType type);
 
+// Cross-voice shared state (see ModuleSharedState.hpp). A module type that needs one object shared
+// across all voices' copies of a placement declares this proc in its ModuleInitSpec; the registry
+// creates one per placed module and injects it as Module::sharedState below.
+struct ModuleSharedState;
+typedef ModuleSharedState* (*ModuleSharedStateCreateProc)();
+
 
 struct InputSlot {
 //	AUParameterAddress moduleID;	// I don't think I need this.
@@ -354,6 +360,10 @@ public:
     double mSampleRate = 44100.0;   // sometimes we need this too
 
     PitchConverter* pitchConverter = nullptr;
+
+    // Cross-voice shared object for this placement, or null if the module type declares none.
+    // Injected by Voice::initializeModules from the VoiceManager's registry (see ModuleSharedState.hpp).
+    ModuleSharedState* sharedState = nullptr;
 
 };
 

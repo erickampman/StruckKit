@@ -140,4 +140,8 @@ inline constexpr AUParameterAddress modalBank1InputAddress =
 inline constexpr AUParameterAddress modalBank1PitchInputAddress =
    MODULE_PARAM_ADDRESS(ModuleParamKindModalBank, ModuleInstance1, ModalBankParamItemPitchInput);
 
+// --- StruckKit: DrumKit (note -> drum, cross-voice hi-hat choke) ---------------------------
+inline constexpr AUParameterAddress drumKit1Address =
+   MODULE_PARAM_ADDRESS(ModuleParamKindDrumKit, ModuleInstance1, 0);
+
 #endif // PM_ADDRESSES_H

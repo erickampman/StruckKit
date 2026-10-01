@@ -1,4 +1,4 @@
-# Testing StruckSynth
+# Testing StruckKit
 
 The project ships a suite of in-process self-tests (via CTest) plus the CLAP conformance
 validator. Everything runs headless on Linux/macOS — no DAW or audio device required.
@@ -26,13 +26,13 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-Add `-DSTRUCKSYNTH_WERROR=ON` at configure time to treat warnings as errors for the framework
+Add `-DSTRUCKKIT_WERROR=ON` at configure time to treat warnings as errors for the framework
 and the `pm-selftest` glue (this is what CI keys on). The tests that pull in vendored
 PolygraphModular headers stay on that code's own warning style.
 
 ## What each test covers
 
-The eight CTest cases exercise the `pm_framework` engine end-to-end (the DPF plugin wrapper
+The CTest cases exercise the `pm_framework` engine end-to-end (the DPF plugin wrapper
 itself is covered by `clap-validator`, below):
 
 | CTest name       | Executable               | Verifies |
@@ -45,6 +45,7 @@ itself is covered by `clap-validator`, below):
 | `pm-factory`     | `pm-factory-test`        | ModuleFactory + the trimmed init-specs build all six v1 modules |
 | `pm-voice`       | `pm-voice-test`          | One full voice renders a note end-to-end and releases |
 | `pm-voicemanager`| `pm-voicemanager-test`   | Polyphony: a 3-note chord allocates 3 voices and frees them on release |
+| `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 12 pitch classes sound, stay finite and free their voice; the map repeats per octave; a closed hat chokes an open hat but not a crash |
 
 ## Running a single test
 
@@ -62,10 +63,10 @@ Validate the built plugin against the CLAP spec with
 [`clap-validator`](https://github.com/free-audio/clap-validator):
 
 ```sh
-clap-validator validate build/bin/StruckSynth.clap
+clap-validator validate build/bin/StruckKit.clap
 ```
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs the configure + build + `ctest` on every push across
-Linux (gcc/clang) and macOS (clang) with `-DSTRUCKSYNTH_WERROR=ON`.
+Linux (gcc/clang) and macOS (clang) with `-DSTRUCKKIT_WERROR=ON`.

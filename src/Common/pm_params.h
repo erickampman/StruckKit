@@ -92,6 +92,7 @@ enum ModuleParamKind : NSUInteger {
    ModuleParamKindCVMixer, // IFSynth: combine mod sources (add/multiply, per-input enable)
    ModuleParamKindStrike,    // StruckSynth: note/gate → shaped excitation burst
    ModuleParamKindModalBank, // StruckSynth: bank of damped modal resonators
+   ModuleParamKindDrumKit,   // StruckKit: note->drum kit voice with cross-voice hi-hat choke (PMU port)
 };
 
 // Module instance — the middle byte of a param address (1..24).
@@ -395,6 +396,36 @@ enum ModalBankMaterial : NSUInteger {
 
 // First generator index; everything at or above this is procedural (see ModalGenerators.hpp).
 #define MODAL_BANK_FIRST_GENERATOR ModalBankMaterialGen0
+
+// --- StruckKit: DrumKit (PMU port) ------------------------------------------------------
+// One MIDI-driven module that renders a whole kit; the played note's pitch class picks the drum.
+// Only the "finalized" per-drum user controls are exposed. See DrumKitModule.cpp.
+enum DrumKitParamItem : NSUInteger {
+   DrumKitParamItemLevel = 1,     // master output gain
+
+   // --- Crash ---
+   DrumKitParamItemCrashSwell,    // bloom time — LPF sweep length (ride->crash)
+   DrumKitParamItemCrashTone,     // noise vs metal balance
+   DrumKitParamItemCrashDecay,    // overall decay (drives metal + noise together)
+   DrumKitParamItemCrashBright,   // bloom end cutoff (how bright it opens up)
+
+   // --- Snare ---
+   DrumKitParamItemSnareTune,     // head pitch (f0)
+   DrumKitParamItemSnareBody,     // body vs wires balance (crisp <-> fat)
+   DrumKitParamItemSnareBuzz,     // body->wire coupling (fuses the two)
+   DrumKitParamItemSnareSnares,   // wire/noise decay (tight <-> loose)
+
+   // --- Toms ---
+   DrumKitParamItemTomTune,       // pitch (transposes low/mid/high together)
+   DrumKitParamItemTomDecay,      // body ring length (punchy <-> boomy)
+   DrumKitParamItemTomBright,     // upper-mode tilt (de-tone: dark <-> lively)
+   DrumKitParamItemTomThump,      // attack skin/stick punch
+
+   // --- Hi-hats ---
+   DrumKitParamItemHatTune,       // overall hat pitch (open lowest, half/closed higher)
+   DrumKitParamItemHatBalance,    // noise sizzle vs metal ring
+   DrumKitParamItemHatBright,     // sizzle high-pass cutoff
+};
 
 // Per-parameter constants (portable): the source for CLAP clap_param_info generation.
 struct ModuleParamConstants {

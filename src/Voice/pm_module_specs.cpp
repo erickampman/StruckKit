@@ -19,6 +19,8 @@
 #include "SinOscillatorModule.hpp"
 #include "SlewModule.hpp"
 #include "StrikeModule.hpp"
+#include "DrumKitModule.hpp"
+#include "ChokeGroupState.hpp"
 #include "pm_addresses.h"
 #include "pm_param_data.h"
 
@@ -74,7 +76,7 @@ const std::vector<ModuleInitSpec>& getModuleInitSpecs() {
       {finalAddress, &finalConstantsGroup, InitFinalModule, DeinitFinalModule, ProcessFinalModule,
        MIDIFinalModule, nullptr, nullptr, SampleRateFinalModule},
 
-      // --- StruckSynth modules (present but unconnected until buildDefaultPatch wires them) ---
+      // --- StruckKit modules (present but unconnected until buildDefaultPatch wires them) ---
       // Strike: the exciter. Uses the MIDI slot (note-on → burst); Reset clears any active burst.
       {strike1Address, &strikeConstantsGroup, InitStrikeModule, DeinitStrikeModule,
        ProcessStrikeModule, MIDIStrikeModule, nullptr, ResetStrikeModule, SampleRateStrikeModule},
@@ -82,6 +84,13 @@ const std::vector<ModuleInitSpec>& getModuleInitSpecs() {
       // NOT note-on — re-striking a ringing bank must not reset the ring-down).
       {modalBank1Address, &modalBankConstantsGroup, InitModalBankModule, DeinitModalBankModule,
        ProcessModalBankModule, nullptr, nullptr, ResetModalBankModule, SampleRateModalBankModule},
+
+      // --- StruckKit ---
+      // DrumKit: the whole kit in one module (note pitch class -> drum). One ChokeGroupState is
+      // shared by every voice's copy so a newer hi-hat can fast-release an older one.
+      {drumKit1Address, &drumKitConstantsGroup, InitDrumKitModule, DeinitDrumKitModule,
+       ProcessDrumKitModule, MIDIDrumKitModule, nullptr, ResetDrumKitModule, nullptr,
+       CreateChokeGroupState},
    };
    return specs;
 }

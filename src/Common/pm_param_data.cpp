@@ -248,3 +248,29 @@ static const ModuleParamConstants modalBankConstants[] = {
 };
 const ModuleParamConstantsGroup modalBankConstantsGroup = {
    const_cast<char*>("modalBank"), sizeof(modalBankConstants) / sizeof(modalBankConstants[0]), modalBankConstants};
+
+// DrumKit — master level + per-drum "finalized" user knobs (0..1). Defaults carried over from PMU.
+static const ModuleParamConstants drumKitConstants[] = {
+   {"level",       DrumKitParamItemLevel,       0, 0, nullptr, 0.0f, 2.0f, 1.0f,  0},
+   // Crash
+   {"crashSwell",  DrumKitParamItemCrashSwell,  0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"crashTone",   DrumKitParamItemCrashTone,   0, 0, nullptr, 0.0f, 1.0f, 0.60f, 0},
+   {"crashDecay",  DrumKitParamItemCrashDecay,  0, 0, nullptr, 0.0f, 1.0f, 0.66f, 0},
+   {"crashBright", DrumKitParamItemCrashBright, 0, 0, nullptr, 0.0f, 1.0f, 0.86f, 0},
+   // Snare
+   {"snareTune",   DrumKitParamItemSnareTune,   0, 0, nullptr, 0.0f, 1.0f, 0.47f, 0},
+   {"snareBody",   DrumKitParamItemSnareBody,   0, 0, nullptr, 0.0f, 1.0f, 0.35f, 0},
+   {"snareBuzz",   DrumKitParamItemSnareBuzz,   0, 0, nullptr, 0.0f, 1.0f, 0.40f, 0},
+   {"snareSnares", DrumKitParamItemSnareSnares, 0, 0, nullptr, 0.0f, 1.0f, 0.55f, 0},
+   // Toms
+   {"tomTune",     DrumKitParamItemTomTune,     0, 0, nullptr, 0.0f, 1.0f, 0.49f, 0},
+   {"tomDecay",    DrumKitParamItemTomDecay,    0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"tomBright",   DrumKitParamItemTomBright,   0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"tomThump",    DrumKitParamItemTomThump,    0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   // Hi-hats
+   {"hatTune",     DrumKitParamItemHatTune,     0, 0, nullptr, 0.0f, 1.0f, 0.52f, 0},
+   {"hatBalance",  DrumKitParamItemHatBalance,  0, 0, nullptr, 0.0f, 1.0f, 0.65f, 0},
+   {"hatBright",   DrumKitParamItemHatBright,   0, 0, nullptr, 0.0f, 1.0f, 0.45f, 0},
+};
+const ModuleParamConstantsGroup drumKitConstantsGroup = {
+   const_cast<char*>("drumKit"), sizeof(drumKitConstants) / sizeof(drumKitConstants[0]), drumKitConstants};

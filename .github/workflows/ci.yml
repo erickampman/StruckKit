@@ -35,7 +35,7 @@ jobs:
           sudo apt-get install -y pkg-config libgl1-mesa-dev libx11-dev \
             libxext-dev libxrandr-dev libxcursor-dev
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKSYNTH_WERROR=ON
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_WERROR=ON
       - name: Build
         run: cmake --build build -j
       - name: Test (framework self-tests via ctest)

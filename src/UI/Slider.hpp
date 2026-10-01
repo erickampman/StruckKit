@@ -2,8 +2,8 @@
 // mod-input side). Labelled, with a live value readout; bipolar-aware (fills from the zero line
 // when the range crosses 0). Bind to a param with Widget::setId(); reports via the Callback.
 
-#ifndef STRUCKSYNTH_SLIDER_HPP
-#define STRUCKSYNTH_SLIDER_HPP
+#ifndef STRUCKKIT_SLIDER_HPP
+#define STRUCKKIT_SLIDER_HPP
 
 #include "NanoVG.hpp"
 
@@ -151,4 +151,4 @@ private:
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_SLIDER_HPP
+#endif // STRUCKKIT_SLIDER_HPP

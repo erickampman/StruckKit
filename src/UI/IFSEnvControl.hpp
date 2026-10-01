@@ -5,8 +5,8 @@
 // starts and ends at 0.0 — there is no start/end handle. Reuses IFSControl::Callback (paramId +
 // value); the host param ids for the seven editable controls are set by the UI.
 
-#ifndef STRUCKSYNTH_IFSENVCONTROL_HPP
-#define STRUCKSYNTH_IFSENVCONTROL_HPP
+#ifndef STRUCKKIT_IFSENVCONTROL_HPP
+#define STRUCKKIT_IFSENVCONTROL_HPP
 
 #include "NanoVG.hpp"
 
@@ -209,4 +209,4 @@ private:
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_IFSENVCONTROL_HPP
+#endif // STRUCKKIT_IFSENVCONTROL_HPP

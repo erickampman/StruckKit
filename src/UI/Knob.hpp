@@ -20,8 +20,8 @@
 //   k->setRealValue(0.01f);
 //   k->setSize(w, h); k->setAbsolutePos(x, y);
 
-#ifndef STRUCKSYNTH_KNOB_HPP
-#define STRUCKSYNTH_KNOB_HPP
+#ifndef STRUCKKIT_KNOB_HPP
+#define STRUCKKIT_KNOB_HPP
 
 #include "NanoVG.hpp"
 #include "EventHandlers.hpp"
@@ -232,4 +232,4 @@ private:
 
 END_NAMESPACE_DGL
 
-#endif // STRUCKSYNTH_KNOB_HPP
+#endif // STRUCKKIT_KNOB_HPP

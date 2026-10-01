@@ -1,26 +1,34 @@
-# StruckSynth
+# StruckKit
 
-A cross-platform **CLAP modal-synthesis instrument** from Unlikelyware — a struck-resonator
-voice built on the PolygraphModular voice engine. Each note fires a shaped excitation burst
-into a bank of tuned resonant modes, so the sound is a struck object (bell, bar, tine, block)
-rather than an oscillator through a filter. Scaffolded from IFSynth, it carries the same
-vendored PolygraphModular engine and DPF/NanoVG UI kit.
+A cross-platform **CLAP modal-synthesis drum kit** from Unlikelyware, built on the
+PolygraphModular voice engine. Forked from [StruckSynth](https://github.com/erickampman/StruckSynth):
+it carries the same engine, `ModalBank` resonator core and DPF/NanoVG UI kit, and plays a whole
+kit from one instance.
 
 ## Status
 
-**Polyphonic struck-resonator synth with a full custom GUI.** The PM framework drives a
-`VoiceManager` (polyphony, note-stealing, mono/legato) rendering the voice
-**Strike → ModalBank → Final**, with pitch tracking via **PitchConverter → Slew** (glide) into
-the bank's pitch input. There is no VCA envelope: the bank's own T60 decay is the amplitude
-envelope, and a voice frees itself once it rings down to silence, so the tail survives
-note-off.
+**Step 2 of the plan: a straight port of PolygraphModularUnified's `DrumKit` module.** The voice
+is **DrumKit → Final**. Each note's pitch class picks the drum, so the kit repeats every octave:
 
-- **Strike** (exciter): Mallet or Noise burst, hardness, velocity → level / hardness, contact
-  mode.
-- **ModalBank** (resonator): up to 64 modes, material presets, stretch, decay (T60), damping
-  tilt + bell, strike position, brightness, stereo spread.
-- **Voices**: Poly (10 voices) or Mono (legato, with glide).
-- **Presets**: factory presets in `Presets/*.json`, baked into the plugin at build time.
+| Key | Drum | Key | Drum |
+|---|---|---|---|
+| C | Kick | C# | Crash 1 |
+| D | Kick 2 | D# | Crash 2 |
+| E | Snare | F# | Open hi-hat |
+| F | Snare 2 | G# | Half hi-hat |
+| G / A / B | Low / mid / high tom | A# | Closed hi-hat |
+
+- **Hi-hat choke**: the three hats share a choke group across voices (a `ChokeGroupState`
+  shared by every voice's copy of the module, via `ModuleSharedState`), so a closed hat cuts a
+  ringing open one. Everything else rings out.
+- **Controls**: Master level plus per-family knobs: Crash (swell, tone, decay, bright), Snare
+  (tune, body, buzz, snares), Toms (tune, decay, bright, thump), Hats (tune, balance, bright).
+- **Voices**: fixed 16-voice polyphony, oldest stolen. Each drum renders its own decay and a
+  voice frees once it has rung out, so hits survive note-off.
+
+The drum bodies are still DrumKit's additive sines. Next: replace them with `ModalBank`
+resonators excited by `Strike` (toms, then snare, then hats and crashes); those two modules are
+already instantiated in every voice, unconnected.
 
 MIDI notes are sample-accurate: `run()` splits rendering at each event's frame offset.
 Parameter changes are applied per host block (DPF applies them before `run()`).
@@ -35,21 +43,22 @@ The engine (`src/`) mirrors PolygraphModular's structure; the DPF plugin assembl
 
 ```
 plugin/               the DPF plugin definition (the CLAP wrapper is generated from these)
-                        DistrhoPluginInfo.h (plugin flags), StruckSynthParams.h (shared param
-                        table), StruckSynthPlugin.cpp (DSP: MIDI + params → VoiceManager)
+                        DistrhoPluginInfo.h (plugin flags), StruckKitParams.h (shared param
+                        table), StruckKitPlugin.cpp (DSP: MIDI + params → VoiceManager)
 src/UI/               the plugin GUI (reusable NanoVG widgets + the panel)
                         Knob, Slider, Toggle, Dropdown, PopupMenu, TabBar, GroupBox, TitleText,
                         Logo; PresetKeys / PresetDump (preset menu + dev-only JSON dumper);
-                        StruckSynthUI.cpp — composes the controls into labelled groups
+                        StruckKitUI.cpp — the kit map + one knob panel per drum family
 src/Common/           shim + MIDI + params + utilities
                         pm_compat.h (Apple→portable), pm_midi.* (spec UMP + MIDI-1 decode),
                         clap_ump.h (CLAP↔UMP), pm_params.h / pm_param_data.* / pm_addresses.h,
                         ParamAddressMacros.h, CPPTypes.hpp, CPPProcs.hpp, KPBuffPairHelper.hpp
 src/Module/           Module core + modules
-                        StrikeModule.*, ModalBank.* / ModalBankModule.* (+ ModalMaterials,
-                        ModalGenerators, ModalDiscretizer), Slew, PitchConverter, Final; the
-                        IFS / Sine / ADSR / LPF / CVMixer / Level / Combine modules inherited
-                        from IFSynth stay instantiated but unconnected
+                        DrumKitModule.* + ChokeGroupState / ModuleSharedState (cross-voice
+                        state), Final; StrikeModule.*, ModalBank.* / ModalBankModule.* (+
+                        ModalMaterials, ModalGenerators, ModalDiscretizer) are instantiated for
+                        the modal port; the IFS / Sine / ADSR / LPF / CVMixer / Level / Combine
+                        modules inherited via StruckSynth stay instantiated but unconnected
 src/Voice/            voice engine
                         Voice.*, VoiceStateManager.*, VoiceManager.*, ModuleMap.*, ModuleGraph.hpp,
                         ModuleInitSpecs.hpp, pm_module_specs.cpp, ConnectionCommandQueue.hpp
@@ -76,18 +85,18 @@ sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev
 Then:
 
 ```sh
-git clone --recurse-submodules https://github.com/erickampman/StruckSynth.git
+git clone --recurse-submodules https://github.com/erickampman/StruckKit.git
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build --output-on-failure     # see TESTING.md for the full suite
 ```
 
-Produces `build/bin/StruckSynth.clap`. A post-build step symlinks it into `~/.clap` (Linux) or
+Produces `build/bin/StruckKit.clap`. A post-build step symlinks it into `~/.clap` (Linux) or
 `~/Library/Audio/Plug-Ins/CLAP/` (macOS), so any CLAP host picks up the freshest build after a
 rescan. Validate with [`clap-validator`](https://github.com/free-audio/clap-validator). Test
 details in [TESTING.md](TESTING.md).
 
-Configure options: `-DSTRUCKSYNTH_WERROR=ON` (warnings as errors), `-DSTRUCKSYNTH_PRESET_DUMP=ON`
+Configure options: `-DSTRUCKKIT_WERROR=ON` (warnings as errors), `-DSTRUCKKIT_PRESET_DUMP=ON`
 (dev-only DUMP button that writes the current patch as JSON to `$HOME`).
 
 ## License
