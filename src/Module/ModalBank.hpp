@@ -66,6 +66,11 @@ public:
     void setDampBellCentre(float octaves);   // octaves above the fundamental
     void setDampBellWidth(float octaves);    // Gaussian sigma, in octaves
     void setStrikePosition(float p);    // 0..1; 0.5 cancels even modes
+
+    // The strike-position law above is the 1-D one, |sin(pi * ratio * p)|, which is right for
+    // strings and bars. 2-D objects (membranes, plates) have their own mode shapes, so a caller
+    // that bakes its own excitation weights into the material's `amp` field turns this off.
+    void setPositionWeighting(bool on);
     void setSpread(float s);            // 0 = mono, 1 = modes spread L/R
 
     // --- audio --------------------------------------------------------------
@@ -88,6 +93,7 @@ public:
 
 private:
     void recomputeIfDirty();
+    void retuneState(int i, float oldA1, float oldA2);
     void flushDenormals();
 
     // Structure-of-arrays so the mode loop can vectorize. Left scalar for now:
@@ -116,6 +122,7 @@ private:
     float  mDampBellWidth;
     float  mStrikePos;
     float  mSpread;
+    bool   mPositionWeighting;
 
     bool   mDirty;
 };

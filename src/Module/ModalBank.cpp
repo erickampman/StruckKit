@@ -52,6 +52,7 @@ ModalBank::ModalBank()
     , mDampBellWidth(0.4f)
     , mStrikePos(0.25f)
     , mSpread(0.0f)
+    , mPositionWeighting(true)
     , mDirty(true)
 {
     reset();
@@ -126,6 +127,12 @@ void ModalBank::setStrikePosition(float p) {
     mDirty = true;
 }
 
+void ModalBank::setPositionWeighting(bool on) {
+    if (on == mPositionWeighting) return;
+    mPositionWeighting = on;
+    mDirty = true;
+}
+
 void ModalBank::setSpread(float s) {
     s = clampf(s, 0.0f, 1.0f);
     if (s == mSpread) return;
@@ -177,6 +184,13 @@ float ModalBank::modeT60(int i) const {
 void ModalBank::recomputeIfDirty() {
     if (!mDirty) return;
     mDirty = false;
+
+    // Coefficients the bank is ringing on right now, so the state can be carried across the
+    // retune (see retuneState below).
+    float oldA1[kMaxModes], oldA2[kMaxModes];
+    const int oldCount = mModeCount;
+    std::copy_n(mA1, oldCount, oldA1);
+    std::copy_n(mA2, oldCount, oldA2);
 
     if (!mMaterial || mMaterial->count <= 0) {
         mModeCount = 0;
@@ -244,7 +258,9 @@ void ModalBank::recomputeIfDirty() {
         // Excitation position. Striking at a node of mode i cancels it; the
         // classic case is p = 0.5 killing every even mode of a string, which
         // hollows the tone out the way a square wave is hollow.
-        const double posGain = std::fabs(std::sin(M_PI * ratio * (double)mStrikePos));
+        const double posGain = mPositionWeighting
+            ? std::fabs(std::sin(M_PI * ratio * (double)mStrikePos))
+            : 1.0;
 
         // Amplitude tilt. Halved exponent keeps the extremes sane: a mode at
         // ratio 30 would otherwise get a 30x boost at full brightness.
@@ -253,6 +269,12 @@ void ModalBank::recomputeIfDirty() {
         const double a = (double)m.amp * posGain * tilt;
         amps[i] = (float)a;
         energy += a * a;
+    }
+
+    // Keep every still-ringing mode at the amplitude and phase it had before the retune.
+    const int carried = std::min(oldCount, mModeCount);
+    for (int i = 0; i < carried; ++i) {
+        retuneState(i, oldA1[i], oldA2[i]);
     }
 
     const double norm = (energy > 0.0) ? (1.0 / std::sqrt(energy)) : 0.0;
@@ -277,6 +299,35 @@ void ModalBank::recomputeIfDirty() {
         mPanL[i] = std::cos(ang);
         mPanR[i] = std::sin(ang);
     }
+}
+
+// Carry mode i's ringing state across a coefficient change.
+//
+// The resonator stores its state as the last two outputs, not as an amplitude and phase. While it
+// rings freely, y[n] = A r^n sin(n w + phi), so with u = r * y2:
+//
+//     y1 = A sin(theta)          u = A sin(theta - w)
+//  => A cos(theta) = (y1 cos(w) - u) / sin(w)
+//
+// Reading (y1, y2) with NEW coefficients as if they were old ones gives the wrong amplitude: the
+// same pair of samples means a bigger oscillation at a lower w (amplitude ~ 1/sin w), so a
+// downward pitch glide would pump energy into a ringing bank (+2.6 dB for the 35% glide a tom
+// uses). Instead, recover A cos(theta) with the old (w, r) and rebuild y2 for the new ones, keeping
+// y1. Amplitude and phase are then continuous, and the bank can be retuned while it rings.
+void ModalBank::retuneState(int i, float oldA1, float oldA2) {
+    if (mY1[i] == 0.0f && mY2[i] == 0.0f) return;
+    if (oldA2 >= 0.0f || mA2[i] >= 0.0f) return;   // a muted mode on either side: nothing to map
+
+    const double rOld = std::sqrt(-(double)oldA2);
+    const double rNew = std::sqrt(-(double)mA2[i]);
+    const double cOld = (double)oldA1 / (2.0 * rOld), cNew = (double)mA1[i] / (2.0 * rNew);
+    const double sOld = std::sqrt(std::max(0.0, 1.0 - cOld * cOld));
+    const double sNew = std::sqrt(std::max(0.0, 1.0 - cNew * cNew));
+    if (sOld < 1.0e-6) return;   // too close to DC/Nyquist to resolve phase; leave as is
+
+    const double y1 = (double)mY1[i];
+    const double aCos = (y1 * cOld - rOld * (double)mY2[i]) / sOld;   // A cos(theta)
+    mY2[i] = (float)((y1 * cNew - aCos * sNew) / rNew);
 }
 
 void ModalBank::flushDenormals() {

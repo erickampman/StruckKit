@@ -164,6 +164,13 @@ target_link_libraries(pm-voicemanager-test PRIVATE pm_framework)
 add_executable(pm-drumkit-test test/pm_drumkit_test.cpp)
 target_link_libraries(pm-drumkit-test PRIVATE pm_framework)
 
+add_executable(pm-modalbank-test test/pm_modalbank_test.cpp)
+target_link_libraries(pm-modalbank-test PRIVATE pm_framework)
+
+# A/B of DrumKit's Additive vs Modal bodies; pass an output dir to also write WAVs for listening.
+add_executable(pm-drumkit-compare test/pm_drumkit_compare.cpp)
+target_link_libraries(pm-drumkit-compare PRIVATE pm_framework)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     # pm-selftest only pulls in light headers → fully strict (optionally -Werror in CI).
     target_compile_options(pm-selftest PRIVATE -Wall -Wextra)
@@ -172,7 +179,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     endif()
     # tests that pull in vendored headers → relaxed (unused params in inline methods).
     foreach(t pm-module-test pm-sinosc-test pm-ifscore-test pm-adsr-test pm-modules-test pm-factory-test
-              pm-voice-test pm-voicemanager-test pm-modroute-test pm-drumkit-test)
+              pm-voice-test pm-voicemanager-test pm-modroute-test pm-drumkit-test pm-drumkit-compare pm-modalbank-test)
         target_compile_options(${t} PRIVATE -Wall -Wno-unknown-pragmas -Wno-unused-parameter)
     endforeach()
 endif()
@@ -210,3 +217,9 @@ set_tests_properties(pm-voicemanager PROPERTIES PASS_REGULAR_EXPRESSION "ALL PAS
 
 add_test(NAME pm-drumkit COMMAND pm-drumkit-test)
 set_tests_properties(pm-drumkit PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
+
+add_test(NAME pm-drumkit-compare COMMAND pm-drumkit-compare)
+set_tests_properties(pm-drumkit-compare PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
+
+add_test(NAME pm-modalbank COMMAND pm-modalbank-test)
+set_tests_properties(pm-modalbank PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")

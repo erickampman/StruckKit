@@ -271,6 +271,8 @@ static const ModuleParamConstants drumKitConstants[] = {
    {"hatTune",     DrumKitParamItemHatTune,     0, 0, nullptr, 0.0f, 1.0f, 0.52f, 0},
    {"hatBalance",  DrumKitParamItemHatBalance,  0, 0, nullptr, 0.0f, 1.0f, 0.65f, 0},
    {"hatBright",   DrumKitParamItemHatBright,   0, 0, nullptr, 0.0f, 1.0f, 0.45f, 0},
+   // Body model: 0 = Additive, 1 = Modal
+   {"bodyModel",   DrumKitParamItemBodyModel,   0, 0, nullptr, 0.0f, 1.0f, 1.0f,  0},
 };
 const ModuleParamConstantsGroup drumKitConstantsGroup = {
    const_cast<char*>("drumKit"), sizeof(drumKitConstants) / sizeof(drumKitConstants[0]), drumKitConstants};

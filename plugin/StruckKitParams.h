@@ -31,6 +31,8 @@ enum ParamIndex {
    kParamHatTune,        // overall hat pitch
    kParamHatBalance,     // metal ring <-> noise sizzle
    kParamHatBright,      // sizzle high-pass cutoff
+   // --- Body model (temporary A/B while the modal port lands) ---
+   kParamBodyModel,      // 0 = Additive (PMU's sines), 1 = Modal (ModalBank)
    kParamCount
 };
 
@@ -67,6 +69,8 @@ static constexpr ParamSpec kParams[kParamCount] = {
    {"Hat Tune",     "hatTune",     "", 0.0f, 1.0f, 0.52f, false, false},
    {"Hat Balance",  "hatBalance",  "", 0.0f, 1.0f, 0.65f, false, false},
    {"Hat Bright",   "hatBright",   "", 0.0f, 1.0f, 0.45f, false, false},
+   // Body model
+   {"Body",         "bodyModel",   "", 0.0f, 1.0f, 1.0f,  false, true },
 };
 
 // Fixed polyphony: enough for rolls under ringing crashes; the oldest voice is stolen beyond it.

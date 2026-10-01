@@ -7,8 +7,8 @@ kit from one instance.
 
 ## Status
 
-**Step 2 of the plan: a straight port of PolygraphModularUnified's `DrumKit` module.** The voice
-is **DrumKit → Final**. Each note's pitch class picks the drum, so the kit repeats every octave:
+**Step 3 of the plan, in progress: moving PolygraphModularUnified's `DrumKit` onto `ModalBank`.**
+The voice is **DrumKit → Final**. Each note's pitch class picks the drum, so the kit repeats every octave:
 
 | Key | Drum | Key | Drum |
 |---|---|---|---|
@@ -26,9 +26,19 @@ is **DrumKit → Final**. Each note's pitch class picks the drum, so the kit rep
 - **Voices**: fixed 16-voice polyphony, oldest stolen. Each drum renders its own decay and a
   voice frees once it has rung out, so hits survive note-off.
 
-The drum bodies are still DrumKit's additive sines. Next: replace them with `ModalBank`
-resonators excited by `Strike` (toms, then snare, then hats and crashes); those two modules are
-already instantiated in every voice, unconnected.
+- **Body (Additive / Modal)**: a temporary A/B switch in the Master panel. Additive is PMU's
+  sines; Modal rings each drum's body on a per-voice `ModalBank` excited by a strike burst whose
+  contact time follows velocity (soft hits roll off the upper modes). A modal head that is
+  struck again while ringing gains energy rather than restarting.
+
+| Family | Body |
+|---|---|
+| Toms | **Modal**. Matches the additive voicing (see `pm-drumkit-compare`) |
+| Snare, hats, crashes | Additive (next) |
+| Kicks | Additive: a swept sine, which modes would not improve |
+
+`pm-drumkit-compare [out-dir]` checks the two models stay matched and, given a directory, writes
+`toms_additive.wav` / `toms_modal.wav` playing the same sequence for listening.
 
 MIDI notes are sample-accurate: `run()` splits rendering at each event's frame offset.
 Parameter changes are applied per host block (DPF applies them before `run()`).

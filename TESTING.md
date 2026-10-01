@@ -45,6 +45,8 @@ itself is covered by `clap-validator`, below):
 | `pm-factory`     | `pm-factory-test`        | ModuleFactory + the trimmed init-specs build all six v1 modules |
 | `pm-voice`       | `pm-voice-test`          | One full voice renders a note end-to-end and releases |
 | `pm-voicemanager`| `pm-voicemanager-test`   | Polyphony: a 3-note chord allocates 3 voices and frees them on release |
+| `pm-modalbank`   | `pm-modalbank-test`      | The `ModalBank` core: impulse amplitude, pitch and T60; retuning while ringing keeps amplitude and phase; position weighting can be turned off |
+| `pm-drumkit-compare` | `pm-drumkit-compare` | Body models A/B: for each family on `ModalBank`, Modal tracks Additive within 1.5 dB of envelope and 2 dB per mode at full velocity, across knob extremes. Pass a directory to also write WAVs |
 | `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 12 pitch classes sound, stay finite and free their voice; the map repeats per octave; a closed hat chokes an open hat but not a crash |
 
 ## Running a single test

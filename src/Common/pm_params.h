@@ -425,6 +425,9 @@ enum DrumKitParamItem : NSUInteger {
    DrumKitParamItemHatTune,       // overall hat pitch (open lowest, half/closed higher)
    DrumKitParamItemHatBalance,    // noise sizzle vs metal ring
    DrumKitParamItemHatBright,     // sizzle high-pass cutoff
+
+   // --- Body model (temporary A/B while the modal port lands) ---
+   DrumKitParamItemBodyModel,     // 0 = Additive (PMU's sines), 1 = Modal (ModalBank)
 };
 
 // Per-parameter constants (portable): the source for CLAP clap_param_info generation.

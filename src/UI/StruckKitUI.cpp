@@ -1,6 +1,7 @@
 // StruckKitUI.cpp — the drum-kit front end. A KitMap legend (which key plays which drum) plus five
 // grouped panels of reusable Knob controls, one per drum family (Crash / Snare / Toms / Hats) and
-// Master. Each panel's title names the drum, so knobs are captioned by just their control.
+// Master. Each panel's title names the drum, so knobs are captioned by just their control. Master
+// also carries the temporary Body (Additive / Modal) A/B dropdown.
 
 #include "DistrhoUI.hpp"
 
@@ -164,11 +165,22 @@ public:
         fHatsGroup   = makeGroup("Hi-Hats  (F# G# A#)",  colHats());
         fMasterGroup = makeGroup("Master",               colMaster());
 
-        // Build each param knob into its panel, in panel order.
+        // Build each param control into its panel, in panel order.
         for (uint32_t i = 0; i < kParamCount; ++i)
         {
             const ParamSpec& s = kParams[i];
             GroupBox* g = groupFor(i);
+            if (i == kParamBodyModel)
+            {
+                auto d = std::make_unique<Dropdown>(g, this);
+                d->setId(i);
+                d->setLabel("Body");
+                d->setChoices({ "Additive", "Modal" });
+                d->setIndex(static_cast<int>(s.def));
+                g->addControl(d.get());
+                fBodyDropdown = std::move(d);
+                continue;
+            }
             auto k = std::make_unique<Knob>(g, this);
             k->setId(i);
             k->setLabel(shortLabel(i));
@@ -205,6 +217,8 @@ protected:
         if (index >= kParamCount) return;
         fValues[index] = value;
         if (fKnobs[index]) { fKnobs[index]->setRealValue(value, false); fKnobs[index]->repaint(); }
+        if (index == kParamBodyModel && fBodyDropdown)
+            fBodyDropdown->setIndex(static_cast<int>(value + 0.5f));
     }
 
     /* -- knob -> host ----------------------------------------------------- */
@@ -217,7 +231,7 @@ protected:
         setParameterValue(id, v);
     }
 
-    /* -- dropdown + menu (preset selector only) --------------------------- */
+    /* -- dropdown + menu (preset selector + Body) --------------------------- */
     void dropdownClicked(Dropdown* d) override
     {
         int x, y, w, h;
@@ -227,7 +241,14 @@ protected:
     }
     void menuSelected(PopupMenu* menu, int index) override
     {
-        if (menu->tag() == kPresetDropdownId) applyPreset(index);
+        const uint32_t id = menu->tag();
+        if (id == kPresetDropdownId) { applyPreset(index); return; }
+        if (id != kParamBodyModel) return;
+        const float v = static_cast<float>(index);
+        editParameter(id, true);
+        setParameterValue(id, v);
+        editParameter(id, false);
+        parameterChanged(id, v);
     }
 
     // Apply every param the selected preset has a value for (looked up by "module.item" key via
@@ -328,8 +349,7 @@ private:
         fPresetDropdown->setAbsolutePos(W - M - presetW, static_cast<int>(4 * s));
 
         // 2 columns × 3 rows under the header: KitMap | Crash, Snare | Toms, Hats | Master.
-        // Master holds a single knob, so it takes a narrow slice of the bottom row and Hats
-        // spreads across the rest.
+        // Master (Level + Body) takes part of the bottom row and Hats spreads across the rest.
         const int gridY = hdr;
         const int gridH = H - gridY - M;
         const int rowH  = (gridH - 2 * gap) / 3;
@@ -345,7 +365,7 @@ private:
             g->setAbsolutePos(x, y);
             g->setSize(w, rowH);
         };
-        const int masterW = colW / 3;
+        const int masterW = colW * 3 / 4;   // Level knob + Body dropdown
         const int masterX = W - M - masterW;
         place(fCrashGroup.get(),  col1, row0, colW);
         place(fSnareGroup.get(),  col0, row1, colW);
@@ -358,6 +378,7 @@ private:
         const float knobD = std::min(74.0f * s, rowH * 0.44f);
         for (uint32_t i = 0; i < kParamCount; ++i)
             if (fKnobs[i]) fKnobs[i]->setDiameter(knobD, s);
+        if (fBodyDropdown) fBodyDropdown->setUiScale(s);
         GroupBox* panels[5] = { fCrashGroup.get(), fSnareGroup.get(), fTomsGroup.get(),
                                 fHatsGroup.get(), fMasterGroup.get() };
         for (GroupBox* g : panels) g->relayout();
@@ -374,7 +395,7 @@ private:
     // Params are laid out family by family in ParamIndex, so each family is a contiguous range.
     GroupBox* groupFor(uint32_t i) const
     {
-        if (i == kParamLevel)        return fMasterGroup.get();
+        if (i == kParamLevel || i == kParamBodyModel) return fMasterGroup.get();
         if (i <= kParamCrashBright)  return fCrashGroup.get();
         if (i <= kParamSnareSnares)  return fSnareGroup.get();
         if (i <= kParamTomThump)     return fTomsGroup.get();
@@ -383,7 +404,7 @@ private:
 
     static Color accentFor(uint32_t i)
     {
-        if (i == kParamLevel)        return colMaster();
+        if (i == kParamLevel || i == kParamBodyModel) return colMaster();
         if (i <= kParamCrashBright)  return colCrash();
         if (i <= kParamSnareSnares)  return colSnare();
         if (i <= kParamTomThump)     return colToms();
@@ -431,6 +452,7 @@ private:
     std::unique_ptr<PopupMenu>     fMenu;
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
+    std::unique_ptr<Dropdown>      fBodyDropdown;   // the temporary Additive / Modal A/B
     float                          fValues[kParamCount];
     bool                           fHasFont = false;
     bool                           fInitialSizeNudged = false;

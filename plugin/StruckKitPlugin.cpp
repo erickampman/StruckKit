@@ -130,6 +130,7 @@ private:
             DrumKitParamItemTomBright,  DrumKitParamItemTomThump,
             DrumKitParamItemHatTune,    DrumKitParamItemHatBalance,
             DrumKitParamItemHatBright,
+            DrumKitParamItemBodyModel,
         };
         if (paramIndex >= kParamCount)
             return 0;

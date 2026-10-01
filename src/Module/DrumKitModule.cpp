@@ -1,14 +1,23 @@
 //
-//  DrumKitModule.cpp — PMU port of PM's DrumKitModule.mm.
+//  DrumKitModule.cpp — PMU port of PM's DrumKitModule.mm, growing modal bodies.
 //
 //  Note->drum routing and the cross-voice hi-hat choke handshake plus per-drum
-//  synthesis (kick / snare / toms / hats / crash). DSP math is carried over
-//  verbatim from PM; only the MIDI message type (pm::UmpMessage) and the shared
-//  choke state (Module::sharedState -> ChokeGroupState) are PMU-native.
+//  synthesis (kick / snare / toms / hats / crash). The ADDITIVE bodies are PMU's
+//  DSP carried over verbatim. StruckKit is replacing them, one family at a time,
+//  with MODAL bodies: a per-voice ModalBank (the framework-free resonator core)
+//  driven by a velocity-shaped strike burst. The Body param picks the model, so
+//  the two can be A/B'd until the modal port is complete:
+//
+//      toms   modal (done)
+//      snare  additive
+//      hats   additive
+//      crash  additive
+//      kick   additive — a swept sine; modes add nothing, so it stays
 //
 
 #include "DrumKitModule.hpp"
 #include "ChokeGroupState.hpp"
+#include "ModalBank.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -170,6 +179,14 @@ struct SnareParams {
 static constexpr int    kMaxModes     = 24;   // toms use 5; cymbals use up to ~22
 static constexpr double kTomAttackSec = 0.0006;
 static constexpr double kTomPitchTau  = 0.04;   // pitch-glide time constant
+
+// Fixed voicing shared by both body models: inharmonic membrane modes, higher modes die sooner.
+static constexpr int    kTomModes = 5;
+static const double kTomModeRatio[kTomModes]      = { 1.0, 1.59, 2.14, 2.30, 2.65 };
+static const double kTomModeDecayRatio[kTomModes] = { 1.0, 0.70, 0.52, 0.42, 0.35 };
+static constexpr double kTomBodyLevel  = 0.55;
+static constexpr double kTomCrackTau   = 0.001;
+static constexpr double kTomCrackLevel = 0.12;
 
 // Tom = pitched modal membrane, but kept deliberately un-tonal: several
 // inharmonic modes (so no single pitch dominates), a downward pitch glide at
@@ -400,6 +417,17 @@ struct DrumKitState {
     double   lp1 = 0.0, lp2 = 0.0;
     // Snare: smoothed body-motion follower for the wire coupling.
     double   bodyEnvF = 0.0;
+
+    // Modal body: this voice's resonator, the per-strike mode table it rings, and the strike
+    // burst that excites it. The bank is NOT cleared on a re-strike of the same drum: a new hit
+    // adds energy to a head that is still ringing, as a real one does.
+    ModalBank     bank;
+    ModalMode     bodyModes[ModalBank::kMaxModes] = {};
+    ModalMaterial bodyMaterial { bodyModes, 0, "DrumBody" };
+    DrumVoiceType bankDrum    = DrumNone;   // drum whose ring the bank currently holds
+    int           strikePos   = -1;         // sample within the burst; -1 = idle
+    int           strikeLen   = 1;
+    float         strikeScale = 0.0f;
 };
 
 static inline void resetVoiceDSP(DrumKitState* st) {
@@ -411,12 +439,186 @@ static inline void resetVoiceDSP(DrumKitState* st) {
     st->bodyEnvF = 0.0;
 }
 
+// ---- Modal bodies ----
+
+enum DrumBodyModel : int { DrumBodyAdditive = 0, DrumBodyModal = 1 };
+
+static constexpr int    kModalSubBlock = 32;     // pitch-glide update granularity, samples
+static constexpr double kLn1000        = 6.907755278982137;   // T60 = tau * ln(1000)
+static constexpr float  kModalSpread   = 0.3f;   // modes fanned a little across the field
+static constexpr float  kModalPanComp  = 1.41421356f;   // undo the -3 dB of equal-power centre pan
+static constexpr float  kModalSilence  = 2.0e-5f;       // bank state below this = rung out
+
+// Strike contact time. A hard hit is a near-impulse (flat spectrum); a soft one is a longer
+// Hann bump that rolls the upper modes off — velocity changes timbre, not just level, which the
+// additive bodies could not do.
+static constexpr double kContactHardSec = 0.0002;
+static constexpr double kContactSoftSec = 0.0015;
+
+// Start the strike burst. Its area is velAmp, so the bank's low modes are driven exactly as
+// hard as the additive body's velocity scaling; contact length only shapes the highs.
+static inline void startStrike(DrumKitState* st) {
+    const double contact = kContactSoftSec + (kContactHardSec - kContactSoftSec) * (double)st->velAmp;
+    st->strikeLen   = std::max(1, (int)std::lround(contact * st->sampleRate));
+    const double area = (st->strikeLen <= 1) ? 1.0 : 0.5 * (double)st->strikeLen;
+    st->strikeScale = (float)((double)st->velAmp / area);
+    st->strikePos   = 0;
+}
+
+// Next n samples of the strike burst (zeros once it is spent).
+static inline void renderStrike(DrumKitState* st, float* ex, int n) {
+    for (int i = 0; i < n; ++i) {
+        float v = 0.0f;
+        if (st->strikePos >= 0) {
+            const int L = st->strikeLen;
+            const float w = (L <= 1)
+                ? 1.0f
+                : 0.5f * (1.0f - std::cos(2.0f * (float)M_PI * ((float)st->strikePos + 0.5f) / (float)L));
+            v = st->strikeScale * w;
+            if (++st->strikePos >= L) { st->strikePos = -1; }
+        }
+        ex[i] = v;
+    }
+}
+
+// ---- Toms ----
+
+// Per-block tom controls, read once and shared by both body models. G / A / B = low / mid /
+// high: one Tune knob transposes all three, keeping their relative spread and per-tom
+// decay/thump character.
+struct TomVoicing {
+    double f0;
+    double bodyDecay;              // s, time constant of mode 0
+    double thumpLevel;
+    double thumpFc;
+    double pitchDrop;              // fractional pitch rise at the strike, gliding back to f0
+    double amp[kTomModes];         // RMS-normalised mode amplitudes, from Bright
+};
+
+static inline TomVoicing tomVoicing(Module* module, DrumVoiceType drum) {
+    double tomRatio, decayOff, thumpOff;
+    if (drum == DrumTomLow)      { tomRatio = 0.71; decayOff = 1.30; thumpOff = 0.85; }
+    else if (drum == DrumTomMid) { tomRatio = 1.00; decayOff = 1.00; thumpOff = 1.00; }
+    else                         { tomRatio = 1.34; decayOff = 0.75; thumpOff = 1.20; }
+
+    TomVoicing v;
+    v.f0         = mapExp(module->getParamValue(DrumKitParamItemTomTune),  90.0, 240.0) * tomRatio;
+    v.bodyDecay  = mapExp(module->getParamValue(DrumKitParamItemTomDecay), 0.08, 0.8)  * decayOff;
+    v.thumpLevel = mapLin(module->getParamValue(DrumKitParamItemTomThump), 0.0,  0.8);
+    v.thumpFc    = 1000.0 * thumpOff;
+    v.pitchDrop  = 0.35;
+
+    // Higher Bright lifts the upper (inharmonic) modes, spreading energy off the fundamental.
+    const float  bright  = module->getParamValue(DrumKitParamItemTomBright);
+    const double rolloff = 0.60 + 0.35 * (double)bright;
+    double ss = 0.0;
+    for (int k = 0; k < kTomModes; ++k) { v.amp[k] = std::pow(rolloff, (double)k); ss += v.amp[k] * v.amp[k]; }
+    const double anorm = (ss > 0.0) ? 1.0 / std::sqrt(ss) : 1.0;
+    for (int k = 0; k < kTomModes; ++k) { v.amp[k] *= anorm; }
+    return v;
+}
+
+// The attack layers both models share: a low-passed skin "pock" and a faint stick crack.
+static inline double tomAttack(DrumKitState* st, const TomVoicing& v, const BiquadBP& thump, double t) {
+    const double nz   = lcgBipolar(st->rng);
+    const double pock = biquadTick(thump, nz, st->nz1, st->nz2) * std::exp(-t / 0.02) * v.thumpLevel;
+    double crack = 0.0;
+    if (t < 6.0 * kTomCrackTau) {
+        crack = kTomCrackLevel * std::exp(-t / kTomCrackTau) * lcgBipolar(st->rng);
+    }
+    return pock + crack;
+}
+
+// PMU's additive tom: five decaying sines with a downward pitch glide (the tom "dooom").
+static void renderTomAdditive(DrumKitState* st, const TomVoicing& v, float level,
+                              float* outL, float* outR, uint32_t count) {
+    const double sr    = st->sampleRate;
+    const double twoPi = 2.0 * M_PI;
+    const BiquadBP thump = makeBandpass(v.thumpFc, 0.7, sr);
+
+    for (uint32_t i = 0; i < count; ++i) {
+        const double t   = (double)st->agePos / sr;
+        const double atk = std::min(1.0, t / kTomAttackSec);
+        const double glide = 1.0 + v.pitchDrop * std::exp(-t / kTomPitchTau);
+
+        double body = 0.0;
+        for (int k = 0; k < kTomModes; ++k) {
+            const double env = std::exp(-t / (v.bodyDecay * kTomModeDecayRatio[k]));
+            st->modePhase[k] += twoPi * (v.f0 * kTomModeRatio[k] * glide) / sr;
+            if (st->modePhase[k] >= twoPi) { st->modePhase[k] -= twoPi; }
+            body += v.amp[k] * env * std::sin(st->modePhase[k]);
+        }
+        body *= kTomBodyLevel * atk;
+
+        const float s = (float)((body + tomAttack(st, v, thump, t)) * st->velAmp * level * kOutScale);
+        outL[i] = s;
+        outR[i] = s;
+
+        st->agePos++;
+
+        if (t > 9.5 * v.bodyDecay) { st->playing = false; }
+    }
+}
+
+// Modal tom: the same voicing rung on a ModalBank, so the two models match (pm-drumkit-compare
+// holds them within 1.5 dB of envelope and 2 dB per mode). Ratios are the additive set — the
+// ideal-membrane values (kMembraneModes) rounded; switching to the exact ones only moves where
+// the 2.14/2.30 modes beat, which is a voicing change for later, not part of the port.
+// Amplitudes come from Bright; the additive per-mode decay ratios ride in the table's `damp`
+// field with DampTilt at 0. The glide retunes the bank every kModalSubBlock samples (ModalBank
+// carries the ringing state across each retune).
+static void renderTomModal(DrumKitState* st, const TomVoicing& v, float level,
+                           float* outL, float* outR, uint32_t count) {
+    const double sr = st->sampleRate;
+    const BiquadBP thump = makeBandpass(v.thumpFc, 0.7, sr);
+
+    for (int k = 0; k < kTomModes; ++k) {
+        st->bodyModes[k] = { (float)kTomModeRatio[k], (float)v.amp[k], (float)kTomModeDecayRatio[k] };
+    }
+    st->bodyMaterial.count = kTomModes;
+    st->bank.setMaterial(st->bodyMaterial);
+    st->bank.invalidate();   // table contents change under a stable pointer
+    st->bank.setModeCount(kTomModes);
+    st->bank.setDecayT60((float)(v.bodyDecay * kLn1000));
+    st->bank.setDampTilt(0.0f);
+    st->bank.setBrightness(0.0f);
+
+    const float bodyGain = (float)(kTomBodyLevel * kOutScale) * level * kModalPanComp;
+    float ex[kModalSubBlock], bL[kModalSubBlock], bR[kModalSubBlock];
+    double t = (double)st->agePos / sr;
+
+    for (uint32_t base = 0; base < count; base += kModalSubBlock) {
+        const int n = (int)std::min<uint32_t>(kModalSubBlock, count - base);
+        const double tMid  = ((double)st->agePos + 0.5 * n) / sr;
+        const double glide = 1.0 + v.pitchDrop * std::exp(-tMid / kTomPitchTau);
+        st->bank.setFundamental((float)(v.f0 * glide));
+
+        renderStrike(st, ex, n);
+        st->bank.processBlock(ex, bL, bR, n);
+
+        for (int i = 0; i < n; ++i) {
+            t = (double)st->agePos / sr;
+            const float hit = (float)(tomAttack(st, v, thump, t) * st->velAmp * level * kOutScale);
+            outL[base + i] = bL[i] * bodyGain + hit;
+            outR[base + i] = bR[i] * bodyGain + hit;
+            st->agePos++;
+        }
+    }
+
+    // Retire once the strike is spent, the attack layers are long gone (the pock's 20 ms
+    // envelope is ~-110 dB by 0.25 s), and the head has rung down.
+    if (st->strikePos < 0 && t > 0.25 && st->bank.isSilent(kModalSilence)) { st->playing = false; }
+}
+
 // ---- Lifecycle ----
 
 const void InitDrumKitModule(uint32_t /*count*/, Module* module)
 {
     auto* st = new DrumKitState();
     st->sampleRate = module->mSampleRate;
+    st->bank.setSampleRate(st->sampleRate);
+    st->bank.setPositionWeighting(false);   // 1-D strike law doesn't fit a membrane
+    st->bank.setSpread(kModalSpread);
     module->state = st;
 }
 
@@ -437,6 +639,9 @@ const void ResetDrumKitModule(Module* module)
         st->playing = false;
         st->agePos = 0;
         resetVoiceDSP(st);
+        st->bank.reset();
+        st->bankDrum = DrumNone;
+        st->strikePos = -1;
     }
 }
 
@@ -492,6 +697,13 @@ const KPBuffPair* ProcessDrumKitModule(uint64_t /*processCallID*/, uint32_t coun
         st->agePos  = 0;
         st->velAmp  = std::max(0.0f, std::min(1.0f, st->pendingVel));
         resetVoiceDSP(st);
+
+        // A different drum on this voice (a steal) must not inherit the old one's ring.
+        if (st->drum != st->bankDrum) {
+            st->bank.reset();
+            st->bankDrum = st->drum;
+        }
+        startStrike(st);
     }
 
     // Cross-voice choke: a newer hi-hat in our group supersedes us.
@@ -634,74 +846,11 @@ const KPBuffPair* ProcessDrumKitModule(uint64_t /*processCallID*/, uint32_t coun
             if (t > 9.5 * maxDecay) { st->playing = false; }
         }
     } else if (st->playing && isTom) {
-        const double twoPi = 2.0 * M_PI;
-
-        // G / A / B = low / mid / high: one Tune knob transposes all three,
-        // keeping their relative spread and per-tom decay/thump character.
-        double tomRatio, decayOff, thumpOff;
-        if (st->drum == DrumTomLow)      { tomRatio = 0.71; decayOff = 1.30; thumpOff = 0.85; }
-        else if (st->drum == DrumTomMid) { tomRatio = 1.00; decayOff = 1.00; thumpOff = 1.00; }
-        else                             { tomRatio = 1.34; decayOff = 0.75; thumpOff = 1.20; }
-
-        // --- finalized tom controls (see DrumKit UI) ---
-        const double f0         = mapExp(module->getParamValue(DrumKitParamItemTomTune),  90.0, 240.0) * tomRatio;
-        const double bodyDecay  = mapExp(module->getParamValue(DrumKitParamItemTomDecay), 0.08, 0.8)  * decayOff;
-        const float  bright     =        module->getParamValue(DrumKitParamItemTomBright);
-        const double thumpLevel = mapLin(module->getParamValue(DrumKitParamItemTomThump), 0.0,  0.8);
-        // fixed voicing (culled knobs):
-        const double pitchDrop  = 0.35;
-        const double thumpFc    = 1000.0 * thumpOff;
-
-        // Fixed voicing: inharmonic membrane modes, higher modes die sooner.
-        static const double modeRatio[5]      = { 1.0, 1.59, 2.14, 2.30, 2.65 };
-        static const double modeDecayRatio[5] = { 1.0, 0.70, 0.52, 0.42, 0.35 };
-        const double bodyLevel = 0.55;
-        const double crackTau  = 0.001;
-        const double crackLevel= 0.12;
-
-        // Mode amplitudes from Bright: higher Bright lifts the upper (inharmonic)
-        // modes, spreading energy off the fundamental. Normalised to ~constant RMS.
-        double amp[5]; double ss = 0.0;
-        const double rolloff = 0.60 + 0.35 * (double)bright;
-        for (int k = 0; k < 5; ++k) { amp[k] = std::pow(rolloff, (double)k); ss += amp[k] * amp[k]; }
-        const double anorm = (ss > 0.0) ? 1.0 / std::sqrt(ss) : 1.0;
-        for (int k = 0; k < 5; ++k) { amp[k] *= anorm; }
-
-        const BiquadBP thump = makeBandpass(thumpFc, 0.7, sr);
-
-        for (uint32_t i = 0; i < count; ++i) {
-            const double t   = (double)st->agePos / sr;
-            const double atk = std::min(1.0, t / kTomAttackSec);
-
-            // Downward pitch glide — the tom "dooom".
-            const double glide = 1.0 + pitchDrop * std::exp(-t / kTomPitchTau);
-
-            double body = 0.0;
-            for (int k = 0; k < 5; ++k) {
-                const double env = std::exp(-t / (bodyDecay * modeDecayRatio[k]));
-                st->modePhase[k] += twoPi * (f0 * modeRatio[k] * glide) / sr;
-                if (st->modePhase[k] >= twoPi) { st->modePhase[k] -= twoPi; }
-                body += amp[k] * env * std::sin(st->modePhase[k]);
-            }
-            body *= bodyLevel * atk;
-
-            // Skin thump: a short low-passed noise "pock" at the attack.
-            const double nz   = lcgBipolar(st->rng);
-            const double pock = biquadTick(thump, nz, st->nz1, st->nz2)
-                              * std::exp(-t / 0.02) * thumpLevel;
-
-            double crack = 0.0;
-            if (t < 6.0 * crackTau) {
-                crack = crackLevel * std::exp(-t / crackTau) * lcgBipolar(st->rng);
-            }
-
-            const float s = (float)((body + pock + crack) * st->velAmp * level * kOutScale);
-            outL[i] = s;
-            outR[i] = s;
-
-            st->agePos++;
-
-            if (t > 9.5 * bodyDecay) { st->playing = false; }
+        const TomVoicing v = tomVoicing(module, st->drum);
+        if (module->getParamValueAsInt(DrumKitParamItemBodyModel) == DrumBodyModal) {
+            renderTomModal(st, v, level, outL, outR, count);
+        } else {
+            renderTomAdditive(st, v, level, outL, outR, count);
         }
     } else if (st->playing && isHat) {
         const double twoPi = 2.0 * M_PI;
