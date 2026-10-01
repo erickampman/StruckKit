@@ -121,16 +121,17 @@ private:
     static AUParameterAddress vmAddress(uint32_t paramIndex)
     {
         static constexpr DrumKitParamItem kItems[kParamCount] = {
-            DrumKitParamItemLevel,
-            DrumKitParamItemCrashSwell, DrumKitParamItemCrashTone,
-            DrumKitParamItemCrashDecay, DrumKitParamItemCrashBright,
-            DrumKitParamItemSnareTune,  DrumKitParamItemSnareBody,
-            DrumKitParamItemSnareBuzz,  DrumKitParamItemSnareSnares,
-            DrumKitParamItemTomTune,    DrumKitParamItemTomDecay,
-            DrumKitParamItemTomBright,  DrumKitParamItemTomThump,
-            DrumKitParamItemHatTune,    DrumKitParamItemHatBalance,
-            DrumKitParamItemHatBright,
-            DrumKitParamItemBodyModel,
+            DrumKitParamItemLevel,         DrumKitParamItemKeyMap,
+            DrumKitParamItemCrashSize,     DrumKitParamItemCrashSize2,
+            DrumKitParamItemCrashThin,     DrumKitParamItemCrashDecay,
+            DrumKitParamItemCrashStroke,
+            DrumKitParamItemSnareTune,     DrumKitParamItemSnareRing,
+            DrumKitParamItemSnarePosition, DrumKitParamItemSnareTension,
+            DrumKitParamItemSnareWires,
+            DrumKitParamItemTomTune,       DrumKitParamItemTomRing,
+            DrumKitParamItemTomPosition,   DrumKitParamItemTomReso,
+            DrumKitParamItemHatSize,       DrumKitParamItemHatThin,
+            DrumKitParamItemHatSizzle,
         };
         if (paramIndex >= kParamCount)
             return 0;

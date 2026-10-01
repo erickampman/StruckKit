@@ -402,32 +402,32 @@ enum ModalBankMaterial : NSUInteger {
 // Only the "finalized" per-drum user controls are exposed. See DrumKitModule.cpp.
 enum DrumKitParamItem : NSUInteger {
    DrumKitParamItemLevel = 1,     // master output gain
+   DrumKitParamItemKeyMap,        // 0 = PMU (pitch class, repeats every octave), 1 = General MIDI
 
    // --- Crash ---
-   DrumKitParamItemCrashSwell,    // bloom time — LPF sweep length (ride->crash)
-   DrumKitParamItemCrashTone,     // noise vs metal balance
-   DrumKitParamItemCrashDecay,    // overall decay (drives metal + noise together)
-   DrumKitParamItemCrashBright,   // bloom end cutoff (how bright it opens up)
+   DrumKitParamItemCrashSize,     // C# crash diameter (13" .. 22")
+   DrumKitParamItemCrashSize2,    // D# crash diameter (13" .. 22")
+   DrumKitParamItemCrashThin,     // thickness: heavy <-> thin (thin blooms into a wash sooner)
+   DrumKitParamItemCrashDecay,    // bronze loss factor: short <-> long ring
+   DrumKitParamItemCrashStroke,   // shoulder on the edge (crash) <-> tip on the bow (ride ping)
 
    // --- Snare ---
-   DrumKitParamItemSnareTune,     // head pitch (f0)
-   DrumKitParamItemSnareBody,     // body vs wires balance (crisp <-> fat)
-   DrumKitParamItemSnareBuzz,     // body->wire coupling (fuses the two)
-   DrumKitParamItemSnareSnares,   // wire/noise decay (tight <-> loose)
+   DrumKitParamItemSnareTune,     // batter-head tension (pitch)
+   DrumKitParamItemSnareRing,     // head damping: muffled <-> open ring
+   DrumKitParamItemSnarePosition, // strike radius: centre <-> edge (E only; F is a rimshot)
+   DrumKitParamItemSnareTension,  // snare-wire tension: loose long buzz <-> tight crisp burst
+   DrumKitParamItemSnareWires,    // wire level
 
    // --- Toms ---
-   DrumKitParamItemTomTune,       // pitch (transposes low/mid/high together)
-   DrumKitParamItemTomDecay,      // body ring length (punchy <-> boomy)
-   DrumKitParamItemTomBright,     // upper-mode tilt (de-tone: dark <-> lively)
-   DrumKitParamItemTomThump,      // attack skin/stick punch
+   DrumKitParamItemTomTune,       // batter-head tension: all three toms move together
+   DrumKitParamItemTomRing,       // head damping: muffled <-> open ring
+   DrumKitParamItemTomPosition,   // strike radius: centre <-> edge
+   DrumKitParamItemTomReso,       // resonant-head tuning relative to the batter: low <-> high
 
    // --- Hi-hats ---
-   DrumKitParamItemHatTune,       // overall hat pitch (open lowest, half/closed higher)
-   DrumKitParamItemHatBalance,    // noise sizzle vs metal ring
-   DrumKitParamItemHatBright,     // sizzle high-pass cutoff
-
-   // --- Body model (temporary A/B while the modal port lands) ---
-   DrumKitParamItemBodyModel,     // 0 = Additive (PMU's sines), 1 = Modal (ModalBank)
+   DrumKitParamItemHatSize,       // diameter, 12" .. 15"
+   DrumKitParamItemHatThin,       // thickness: heavy <-> thin
+   DrumKitParamItemHatSizzle,     // half-open: how close the cymbals sit, i.e. how much they chatter
 };
 
 // Per-parameter constants (portable): the source for CLAP clap_param_info generation.

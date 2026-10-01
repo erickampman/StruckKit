@@ -34,6 +34,8 @@ add_library(pm_framework STATIC
     src/Module/ModalBank.cpp
     src/Module/StrikeModule.cpp
     src/Module/DrumKitModule.cpp
+    src/Module/ResonatorBank.cpp
+    src/Module/Cymbal.cpp
     src/Module/ModuleFactory.cpp
     src/Voice/ModuleMap.cpp
     src/Voice/pm_module_specs.cpp
@@ -164,12 +166,16 @@ target_link_libraries(pm-voicemanager-test PRIVATE pm_framework)
 add_executable(pm-drumkit-test test/pm_drumkit_test.cpp)
 target_link_libraries(pm-drumkit-test PRIVATE pm_framework)
 
+add_executable(pm-snare-test test/pm_snare_test.cpp)
+target_link_libraries(pm-snare-test PRIVATE pm_framework)
+
 add_executable(pm-modalbank-test test/pm_modalbank_test.cpp)
 target_link_libraries(pm-modalbank-test PRIVATE pm_framework)
 
-# A/B of DrumKit's Additive vs Modal bodies; pass an output dir to also write WAVs for listening.
-add_executable(pm-drumkit-compare test/pm_drumkit_compare.cpp)
-target_link_libraries(pm-drumkit-compare PRIVATE pm_framework)
+# Listening/measuring bench for the physically voiced drums (not a CTest: it reports, it doesn't
+# assert). Pass an output dir to also write WAVs.
+add_executable(pm-drumkit-render test/pm_drumkit_render.cpp)
+target_link_libraries(pm-drumkit-render PRIVATE pm_framework)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     # pm-selftest only pulls in light headers → fully strict (optionally -Werror in CI).
@@ -179,7 +185,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     endif()
     # tests that pull in vendored headers → relaxed (unused params in inline methods).
     foreach(t pm-module-test pm-sinosc-test pm-ifscore-test pm-adsr-test pm-modules-test pm-factory-test
-              pm-voice-test pm-voicemanager-test pm-modroute-test pm-drumkit-test pm-drumkit-compare pm-modalbank-test)
+              pm-voice-test pm-voicemanager-test pm-modroute-test pm-drumkit-test pm-modalbank-test pm-drumkit-render pm-snare-test)
         target_compile_options(${t} PRIVATE -Wall -Wno-unknown-pragmas -Wno-unused-parameter)
     endforeach()
 endif()
@@ -218,8 +224,9 @@ set_tests_properties(pm-voicemanager PROPERTIES PASS_REGULAR_EXPRESSION "ALL PAS
 add_test(NAME pm-drumkit COMMAND pm-drumkit-test)
 set_tests_properties(pm-drumkit PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
 
-add_test(NAME pm-drumkit-compare COMMAND pm-drumkit-compare)
-set_tests_properties(pm-drumkit-compare PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
 
 add_test(NAME pm-modalbank COMMAND pm-modalbank-test)
 set_tests_properties(pm-modalbank PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
+
+add_test(NAME pm-snare COMMAND pm-snare-test)
+set_tests_properties(pm-snare PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")

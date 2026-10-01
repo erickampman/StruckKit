@@ -45,9 +45,13 @@ itself is covered by `clap-validator`, below):
 | `pm-factory`     | `pm-factory-test`        | ModuleFactory + the trimmed init-specs build all six v1 modules |
 | `pm-voice`       | `pm-voice-test`          | One full voice renders a note end-to-end and releases |
 | `pm-voicemanager`| `pm-voicemanager-test`   | Polyphony: a 3-note chord allocates 3 voices and frees them on release |
+| `pm-snare`       | `pm-snare-test`          | The snare's physics: Bessel accuracy and the mode table's zeros; a centre strike drives only m = 0 modes; the two-head coupling solves its eigenproblem; wires are silent on a still head and below lift-off, rattle harder with harder hits, and stop sooner when tight |
 | `pm-modalbank`   | `pm-modalbank-test`      | The `ModalBank` core: impulse amplitude, pitch and T60; retuning while ringing keeps amplitude and phase; position weighting can be turned off |
-| `pm-drumkit-compare` | `pm-drumkit-compare` | Body models A/B: for each family on `ModalBank`, Modal tracks Additive within 1.5 dB of envelope and 2 dB per mode at full velocity, across knob extremes. Pass a directory to also write WAVs |
-| `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 12 pitch classes sound, stay finite and free their voice; the map repeats per octave; a closed hat chokes an open hat but not a crash |
+| `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 12 pitch classes sound, stay finite and free their voice; the PMU map repeats per octave; a closed hat chokes an open hat but not a crash; the GM map plays its notes, leaves unmodelled ones silent and keeps the hat choke |
+
+`pm-drumkit-render [out-dir]` is a measuring bench, not a CTest: for each drum it prints decay
+times, partials, pitch bend, wire duration, band energies and cymbal bloom over time, and writes
+listening WAVs when given a directory.
 
 ## Running a single test
 

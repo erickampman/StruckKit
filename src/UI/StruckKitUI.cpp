@@ -1,7 +1,7 @@
-// StruckKitUI.cpp — the drum-kit front end. A KitMap legend (which key plays which drum) plus five
-// grouped panels of reusable Knob controls, one per drum family (Crash / Snare / Toms / Hats) and
-// Master. Each panel's title names the drum, so knobs are captioned by just their control. Master
-// also carries the temporary Body (Additive / Modal) A/B dropdown.
+// StruckKitUI.cpp — the drum-kit front end. A KitMap legend (which key plays which drum, for the
+// selected key map) plus five grouped panels of reusable Knob controls, one per drum family
+// (Crash / Snare / Toms / Hats) and Master. Each panel's title names the drum, so knobs are
+// captioned by just their control. Master also carries the key-map dropdown (PMU / GM).
 
 #include "DistrhoUI.hpp"
 
@@ -45,15 +45,22 @@ static inline Color colToms()   { return Color(120, 190, 140); }
 static inline Color colHats()   { return Color(168, 140, 214); }
 
 // --------------------------------------------------------------------------------------------
-// KitMap — one octave of keyboard showing which drum each pitch class plays (the mapping in
-// DrumKitModule.cpp's drumForNote). Keys are tinted by drum family to match the panels. Static:
-// it only redraws on resize.
+// KitMap — which key plays which drum (DrumKitModule.cpp's drumForNote). For the PMU map, one
+// octave of keyboard, since that map repeats every octave; for General MIDI, the note numbers by
+// drum. Keys and names are tinted by drum family to match the panels.
 class KitMap : public NanoSubWidget
 {
 public:
     explicit KitMap(Widget* parent) : NanoSubWidget(parent)
     {
         fHasFont = loadSharedResources();
+    }
+
+    void setKeyMap(int map)
+    {
+        if (map == fKeyMap) return;
+        fKeyMap = map;
+        repaint();
     }
 
 protected:
@@ -66,6 +73,8 @@ protected:
         beginPath(); roundedRect(0.5f, 0.5f, w - 1, h - 1, 6);
         strokeColor(Color(58, 62, 70)); strokeWidth(1.0f); stroke();
 
+        if (fKeyMap == 1) { drawGM(w, h, s); return; }
+
         const float padX = 12 * s, padTop = 10 * s, capH = 22 * s;
         const float kx = padX, kw = w - 2 * padX;
         const float ky = padTop, kh = h - padTop - capH - 6 * s;
@@ -73,8 +82,8 @@ protected:
 
         // White keys: C D E F G A B. Labels sit at the bottom, below where black keys reach.
         static const struct { const char* name; int family; } kWhite[7] = {
-            {"Kick", 0}, {"Kick 2", 0}, {"Snare", 1}, {"Snare 2", 1},
-            {"Lo Tom", 2}, {"Mid Tom", 2}, {"Hi Tom", 2},
+            {"Kick", 0}, {"Kick 2", 0}, {"Snare", 1}, {"Rimshot", 1},
+            {"Floor Tom", 2}, {"Mid Tom", 2}, {"Hi Tom", 2},
         };
         const float ww = kw / 7.0f;
         for (int i = 0; i < 7; ++i)
@@ -112,6 +121,49 @@ protected:
     }
 
 private:
+    // General MIDI: one row per drum family, "name note" pairs. Keys GM defines that StruckKit has
+    // no model for (clap, cowbell, Latin percussion, ...) are silent and not listed.
+    void drawGM(float w, float h, float s)
+    {
+        if (!fHasFont) return;
+        struct Item { const char* name; const char* keys; };
+        struct Row  { int family; Item items[5]; };
+        static const Row kRows[] = {
+            { 0, { {"Kick", "36"}, {"Kick 2", "35"} } },
+            { 1, { {"Snare", "38 40"}, {"Rimshot", "37"} } },
+            { 2, { {"Floor", "41 43"}, {"Mid", "45 47"}, {"High", "48 50"} } },
+            { 4, { {"Closed", "42 44"}, {"Open", "46"} } },
+            { 3, { {"Crash 1", "49 52"}, {"Crash 2", "57 55"}, {"Ride", "51 59"}, {"Bell", "53"} } },
+        };
+        const int   rows = (int)(sizeof(kRows) / sizeof(kRows[0]));
+        const float padX = 14 * s, top = 12 * s, capH = 22 * s;
+        const float rowH = (h - top - capH) / rows;
+        const float colW = (w - 2 * padX) / 4.0f;
+        fontFace(NANOVG_DEJAVU_SANS_TTF);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+        for (int r = 0; r < rows; ++r)
+        {
+            const float y = top + (r + 0.5f) * rowH;
+            for (int i = 0; i < 5 && kRows[r].items[i].name; ++i)
+            {
+                const float x = padX + i * colW;
+                fontSize(11.5f * s);
+                fillColor(familyColor(kRows[r].family));
+                text(x, y, kRows[r].items[i].name, nullptr);
+                DGL_NAMESPACE::Rectangle<float> b;
+                textBounds(x, y, kRows[r].items[i].name, nullptr, b);
+                fontSize(10.5f * s);
+                fillColor(Color(200, 204, 212));
+                text(b.getX() + b.getWidth() + 5 * s, y, kRows[r].items[i].keys, nullptr);
+            }
+        }
+        fontSize(11 * s);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        fillColor(Color(150, 154, 162));
+        text(w * 0.5f, h - capH * 0.5f - 2 * s,
+             "General MIDI note numbers. Open and closed hats choke each other.", nullptr);
+    }
+
     static Color familyColor(int f)
     {
         switch (f)
@@ -135,6 +187,7 @@ private:
     }
 
     bool fHasFont = false;
+    int  fKeyMap  = 0;   // 0 = PMU, 1 = GM
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitMap)
 };
@@ -159,26 +212,28 @@ public:
         fLogo = std::make_unique<Logo>(this, EmbeddedResources::Unlikelyware_Final_ColorData,
                                        EmbeddedResources::Unlikelyware_Final_ColorDataSize);
 
-        fCrashGroup  = makeGroup("Crash  (C# D#)",       colCrash());
-        fSnareGroup  = makeGroup("Snare  (E F)",         colSnare());
-        fTomsGroup   = makeGroup("Toms  (G A B)",        colToms());
-        fHatsGroup   = makeGroup("Hi-Hats  (F# G# A#)",  colHats());
-        fMasterGroup = makeGroup("Master",               colMaster());
+        // Titles name the instruments, not keys: which key plays what depends on the map, and the
+        // KitMap shows that.
+        fCrashGroup  = makeGroup("Crashes  (and ride)",             colCrash());
+        fSnareGroup  = makeGroup("Snare  (stroke, rimshot)",        colSnare());
+        fTomsGroup   = makeGroup("Toms  (16\" floor, 12\", 10\")", colToms());
+        fHatsGroup   = makeGroup("Hi-Hats  (open, half, closed)",   colHats());
+        fMasterGroup = makeGroup("Master",                          colMaster());
 
         // Build each param control into its panel, in panel order.
         for (uint32_t i = 0; i < kParamCount; ++i)
         {
             const ParamSpec& s = kParams[i];
             GroupBox* g = groupFor(i);
-            if (i == kParamBodyModel)
+            if (i == kParamKeyMap)
             {
                 auto d = std::make_unique<Dropdown>(g, this);
                 d->setId(i);
-                d->setLabel("Body");
-                d->setChoices({ "Additive", "Modal" });
+                d->setLabel("Map");
+                d->setChoices({ "PMU", "GM" });
                 d->setIndex(static_cast<int>(s.def));
                 g->addControl(d.get());
-                fBodyDropdown = std::move(d);
+                fMapDropdown = std::move(d);
                 continue;
             }
             auto k = std::make_unique<Knob>(g, this);
@@ -217,8 +272,12 @@ protected:
         if (index >= kParamCount) return;
         fValues[index] = value;
         if (fKnobs[index]) { fKnobs[index]->setRealValue(value, false); fKnobs[index]->repaint(); }
-        if (index == kParamBodyModel && fBodyDropdown)
-            fBodyDropdown->setIndex(static_cast<int>(value + 0.5f));
+        if (index == kParamKeyMap)
+        {
+            const int map = static_cast<int>(value + 0.5f);
+            if (fMapDropdown) fMapDropdown->setIndex(map);
+            if (fKitMap)      fKitMap->setKeyMap(map);
+        }
     }
 
     /* -- knob -> host ----------------------------------------------------- */
@@ -231,7 +290,7 @@ protected:
         setParameterValue(id, v);
     }
 
-    /* -- dropdown + menu (preset selector + Body) --------------------------- */
+    /* -- dropdown + menu (preset selector + key map) ------------------------ */
     void dropdownClicked(Dropdown* d) override
     {
         int x, y, w, h;
@@ -243,7 +302,7 @@ protected:
     {
         const uint32_t id = menu->tag();
         if (id == kPresetDropdownId) { applyPreset(index); return; }
-        if (id != kParamBodyModel) return;
+        if (id != kParamKeyMap) return;
         const float v = static_cast<float>(index);
         editParameter(id, true);
         setParameterValue(id, v);
@@ -349,7 +408,7 @@ private:
         fPresetDropdown->setAbsolutePos(W - M - presetW, static_cast<int>(4 * s));
 
         // 2 columns × 3 rows under the header: KitMap | Crash, Snare | Toms, Hats | Master.
-        // Master (Level + Body) takes part of the bottom row and Hats spreads across the rest.
+        // Master (Level + Map) takes part of the bottom row and Hats spreads across the rest.
         const int gridY = hdr;
         const int gridH = H - gridY - M;
         const int rowH  = (gridH - 2 * gap) / 3;
@@ -365,7 +424,7 @@ private:
             g->setAbsolutePos(x, y);
             g->setSize(w, rowH);
         };
-        const int masterW = colW * 3 / 4;   // Level knob + Body dropdown
+        const int masterW = colW * 3 / 4;   // Level knob + Map dropdown
         const int masterX = W - M - masterW;
         place(fCrashGroup.get(),  col1, row0, colW);
         place(fSnareGroup.get(),  col0, row1, colW);
@@ -378,7 +437,7 @@ private:
         const float knobD = std::min(74.0f * s, rowH * 0.44f);
         for (uint32_t i = 0; i < kParamCount; ++i)
             if (fKnobs[i]) fKnobs[i]->setDiameter(knobD, s);
-        if (fBodyDropdown) fBodyDropdown->setUiScale(s);
+        if (fMapDropdown) fMapDropdown->setUiScale(s);
         GroupBox* panels[5] = { fCrashGroup.get(), fSnareGroup.get(), fTomsGroup.get(),
                                 fHatsGroup.get(), fMasterGroup.get() };
         for (GroupBox* g : panels) g->relayout();
@@ -395,19 +454,19 @@ private:
     // Params are laid out family by family in ParamIndex, so each family is a contiguous range.
     GroupBox* groupFor(uint32_t i) const
     {
-        if (i == kParamLevel || i == kParamBodyModel) return fMasterGroup.get();
-        if (i <= kParamCrashBright)  return fCrashGroup.get();
-        if (i <= kParamSnareSnares)  return fSnareGroup.get();
-        if (i <= kParamTomThump)     return fTomsGroup.get();
+        if (i == kParamLevel || i == kParamKeyMap) return fMasterGroup.get();
+        if (i <= kParamCrashStroke)  return fCrashGroup.get();
+        if (i <= kParamSnareWires)  return fSnareGroup.get();
+        if (i <= kParamTomReso)     return fTomsGroup.get();
         return fHatsGroup.get();
     }
 
     static Color accentFor(uint32_t i)
     {
-        if (i == kParamLevel || i == kParamBodyModel) return colMaster();
-        if (i <= kParamCrashBright)  return colCrash();
-        if (i <= kParamSnareSnares)  return colSnare();
-        if (i <= kParamTomThump)     return colToms();
+        if (i == kParamLevel || i == kParamKeyMap) return colMaster();
+        if (i <= kParamCrashStroke)  return colCrash();
+        if (i <= kParamSnareWires)  return colSnare();
+        if (i <= kParamTomReso)     return colToms();
         return colHats();
     }
 
@@ -418,21 +477,23 @@ private:
         switch (i)
         {
         case kParamLevel:       return "Level";
-        case kParamCrashSwell:  return "Swell";
-        case kParamCrashTone:   return "Tone";
+        case kParamCrashSize:   return "Size 1";
+        case kParamCrashSize2:  return "Size 2";
+        case kParamCrashThin:   return "Thin";
         case kParamCrashDecay:  return "Decay";
-        case kParamCrashBright: return "Bright";
-        case kParamSnareTune:   return "Tune";
-        case kParamSnareBody:   return "Body";
-        case kParamSnareBuzz:   return "Buzz";
-        case kParamSnareSnares: return "Snares";
+        case kParamCrashStroke: return "Stroke";
+        case kParamSnareTune:     return "Tune";
+        case kParamSnareRing:     return "Ring";
+        case kParamSnarePosition: return "Position";
+        case kParamSnareTension:  return "Tension";
+        case kParamSnareWires:    return "Wires";
         case kParamTomTune:     return "Tune";
-        case kParamTomDecay:    return "Decay";
-        case kParamTomBright:   return "Bright";
-        case kParamTomThump:    return "Thump";
-        case kParamHatTune:     return "Tune";
-        case kParamHatBalance:  return "Balance";
-        case kParamHatBright:   return "Bright";
+        case kParamTomRing:     return "Ring";
+        case kParamTomPosition: return "Position";
+        case kParamTomReso:     return "Reso";
+        case kParamHatSize:     return "Size";
+        case kParamHatThin:     return "Thin";
+        case kParamHatSizzle:   return "Sizzle";
         default:                return kParams[i].name;
         }
     }
@@ -452,7 +513,7 @@ private:
     std::unique_ptr<PopupMenu>     fMenu;
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
-    std::unique_ptr<Dropdown>      fBodyDropdown;   // the temporary Additive / Modal A/B
+    std::unique_ptr<Dropdown>      fMapDropdown;    // key map: PMU / GM
     float                          fValues[kParamCount];
     bool                           fHasFont = false;
     bool                           fInitialSizeNudged = false;

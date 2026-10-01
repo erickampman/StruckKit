@@ -131,6 +131,34 @@ int main() {
 
    std::printf("DrumKit: openAlone=%.4f openChoked=%.6f crashAlone=%.4f crashWithHat=%.4f\n",
                openAlone, openChoked, crashAlone, crashHat);
+
+   // 5. General MIDI map: GM notes play their drums, keys StruckKit has no model for stay silent,
+   //    and the GM open/closed hats still choke each other.
+   {
+      auto gmPeak = [&](uint8_t note, int second = -1, int at = 0, int from = 0, int to = 4) {
+         auto vm = makeKit();
+         vm->setParameter(MODULE_PARAM_ADDRESS(ModuleParamKindDrumKit, ModuleInstance1, DrumKitParamItemKeyMap), 1.0f);
+         Block b;
+         float p = 0.0f;
+         vm->handleMIDIMessage(pm::makeNoteOn(note, 0xC000));
+         for (int i = 0; i < to; ++i) {
+            if (second >= 0 && i == at) vm->handleMIDIMessage(pm::makeNoteOn((uint8_t)second, 0xC000));
+            render(*vm, b);
+            if (i >= from) p = std::fmax(p, b.peak);
+         }
+         return p;
+      };
+      CHECK(gmPeak(36) > 0.05f, "GM 36 (bass drum) sounds");
+      CHECK(gmPeak(38) > 0.05f, "GM 38 (snare) sounds");
+      CHECK(gmPeak(51) > 0.05f, "GM 51 (ride) sounds");
+      CHECK(gmPeak(39) == 0.0f, "GM 39 (hand clap, not modelled) is silent");
+      CHECK(gmPeak(36) > 0.5f * peakWindow(48, 0, 4), "GM 36 is the PMU kick");   // C = kick
+      const float gmOpen   = gmPeak(46, -1, 0, from, to);
+      const float gmChoked = gmPeak(46, 42, 2, from, to);
+      CHECK(gmChoked < gmOpen * 0.01f, "GM closed hat (42) chokes the open hat (46)");
+      std::printf("GM map: kick %.3f snare %.3f ride %.3f clap %.3f; open hat %.4f, choked %.6f\n",
+                  gmPeak(36), gmPeak(38), gmPeak(51), gmPeak(39), gmOpen, gmChoked);
+   }
    if (g_fails == 0)
       std::printf("ALL PASS\n");
    return g_fails == 0 ? 0 : 1;

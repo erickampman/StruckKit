@@ -7,38 +7,41 @@ kit from one instance.
 
 ## Status
 
-**Step 3 of the plan, in progress: moving PolygraphModularUnified's `DrumKit` onto `ModalBank`.**
-The voice is **DrumKit → Final**. Each note's pitch class picks the drum, so the kit repeats every octave:
+**A physically modelled kit.** The voice is **DrumKit → Final**; the routing and hi-hat choke come
+from PolygraphModularUnified's `DrumKit`, the drums are physical models voiced for an authentic
+acoustic sound rather than to match PMU.
 
-| Key | Drum | Key | Drum |
-|---|---|---|---|
-| C | Kick | C# | Crash 1 |
-| D | Kick 2 | D# | Crash 2 |
-| E | Snare | F# | Open hi-hat |
-| F | Snare 2 | G# | Half hi-hat |
-| G / A / B | Low / mid / high tom | A# | Closed hi-hat |
+**Key map** (Master panel): **PMU** — the note's pitch class picks the drum, repeating every octave —
+or **General MIDI** note numbers.
 
-- **Hi-hat choke**: the three hats share a choke group across voices (a `ChokeGroupState`
-  shared by every voice's copy of the module, via `ModuleSharedState`), so a closed hat cuts a
-  ringing open one. Everything else rings out.
-- **Controls**: Master level plus per-family knobs: Crash (swell, tone, decay, bright), Snare
-  (tune, body, buzz, snares), Toms (tune, decay, bright, thump), Hats (tune, balance, bright).
-- **Voices**: fixed 16-voice polyphony, oldest stolen. Each drum renders its own decay and a
-  voice frees once it has rung out, so hits survive note-off.
+| PMU key | Drum | GM notes |
+|---|---|---|
+| C / D | Kick / Kick 2 | 36 / 35 |
+| E / F | Snare / rimshot | 38, 40 / 37 |
+| G / A / B | Toms: 16" floor / 12" / 10" | 41, 43 / 45, 47 / 48, 50 |
+| C# / D# | Crash 1 / Crash 2 | 49, 52 / 57, 55 |
+| F# / G# / A# | Hi-hat open / half / closed | 46 / — / 42, 44 |
+| — | Ride / ride bell (GM only) | 51, 59 / 53 |
 
-- **Body (Additive / Modal)**: a temporary A/B switch in the Master panel. Additive is PMU's
-  sines; Modal rings each drum's body on a per-voice `ModalBank` excited by a strike burst whose
-  contact time follows velocity (soft hits roll off the upper modes). A modal head that is
-  struck again while ringing gains energy rather than restarting.
+Unlisted GM percussion (clap, cowbell, Latin) is silent. The hi-hats share a choke group across
+voices (a `ChokeGroupState` shared through `ModuleSharedState`), so a closed hat cuts a ringing open
+one. Fixed 16-voice polyphony, oldest stolen; every drum rings out past note-off.
 
-| Family | Body |
+| Drum | Model |
 |---|---|
-| Toms | **Modal**. Matches the additive voicing (see `pm-drumkit-compare`) |
-| Snare, hats, crashes | Additive (next) |
-| Kicks | Additive: a swept sine, which modes would not improve |
+| Snare | Ideal-membrane modes (Bessel zeros) driven by their shapes at the strike radius; batter and snare-side heads coupled through the enclosed air; monopole radiation; the wires as eight pre-loaded strands in contact with the bottom head (`MembraneModes.hpp`, `SnareWires.hpp`). |
+| Toms | The same two-headed drum without wires, at real sizes; the resonant head's tuning (Reso) and its lighter damping set sustain; tension-modulation pitch bend on hard strokes. |
+| Crashes, ride | A free-edge bronze plate: ~1000 modes, low ones exact (`tools/gen_plate_modes.py`), the rest semiclassical; dome stiffening, strike-radius weighting, 1/f material loss, size-dependent radiation; a nonlinear, energy-conserving cascade whose strength follows the rim's swing against the thickness, so hard strokes on thin cymbals bloom into a wash (`Cymbal.hpp`, `ResonatorBank.hpp`). |
+| Hi-hats | The same plate with the bottom cymbal as a contact at the rim: open, chattering half-open, clamped closed. |
+| Kicks | PMU's additive kick, still to be modelled. |
 
-`pm-drumkit-compare [out-dir]` checks the two models stay matched and, given a directory, writes
-`toms_additive.wav` / `toms_modal.wav` playing the same sequence for listening.
+Each control is a physical quantity: Crash 1 / 2 Size (diameter), Thin, Decay, Stroke (shoulder on
+the edge ↔ tip on the bow); Snare Tune, Ring, Position, Tension (wires), Wires; Tom Tune, Ring,
+Position, Reso; Hat Size, Thin, Sizzle. Constants that are set by ear rather than derived are marked
+as such in the source.
+
+`pm-drumkit-render [out-dir]` is the measuring bench: decay, partials, pitch bend, band energies and
+cymbal bloom over time for each drum, and listening WAVs when given a directory.
 
 MIDI notes are sample-accurate: `run()` splits rendering at each event's frame offset.
 Parameter changes are applied per host block (DPF applies them before `run()`).
@@ -64,11 +67,12 @@ src/Common/           shim + MIDI + params + utilities
                         clap_ump.h (CLAP↔UMP), pm_params.h / pm_param_data.* / pm_addresses.h,
                         ParamAddressMacros.h, CPPTypes.hpp, CPPProcs.hpp, KPBuffPairHelper.hpp
 src/Module/           Module core + modules
-                        DrumKitModule.* + ChokeGroupState / ModuleSharedState (cross-voice
-                        state), Final; StrikeModule.*, ModalBank.* / ModalBankModule.* (+
-                        ModalMaterials, ModalGenerators, ModalDiscretizer) are instantiated for
-                        the modal port; the IFS / Sine / ADSR / LPF / CVMixer / Level / Combine
-                        modules inherited via StruckSynth stay instantiated but unconnected
+                        DrumKitModule.* (the kit) + ChokeGroupState / ModuleSharedState
+                        (cross-voice state); the physics: MembraneModes, SnareWires, PlateModes
+                        (+ generated PlateModesTable), Cymbal, ResonatorBank, ModalBank; Final.
+                        StrikeModule / ModalBankModule and the IFS / Sine / ADSR / LPF / CVMixer /
+                        Level / Combine modules inherited via StruckSynth stay instantiated but
+                        unconnected
 src/Voice/            voice engine
                         Voice.*, VoiceStateManager.*, VoiceManager.*, ModuleMap.*, ModuleGraph.hpp,
                         ModuleInitSpecs.hpp, pm_module_specs.cpp, ConnectionCommandQueue.hpp
