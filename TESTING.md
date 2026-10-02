@@ -47,11 +47,11 @@ itself is covered by `clap-validator`, below):
 | `pm-voicemanager`| `pm-voicemanager-test`   | Polyphony: a 3-note chord allocates 3 voices and frees them on release |
 | `pm-snare`       | `pm-snare-test`          | The snare's physics: Bessel accuracy and the mode table's zeros; a centre strike drives only m = 0 modes; the two-head coupling solves its eigenproblem; wires are silent on a still head and below lift-off, rattle harder with harder hits, and stop sooner when tight |
 | `pm-modalbank`   | `pm-modalbank-test`      | The `ModalBank` core: impulse amplitude, pitch and T60; retuning while ringing keeps amplitude and phase; position weighting can be turned off |
-| `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 12 pitch classes sound, stay finite and free their voice; the StruckKit map repeats per octave; a closed hat chokes an open hat but not a crash; the GM map plays its notes, leaves unmodelled ones silent and keeps the hat choke |
+| `pm-drumkit`     | `pm-drumkit-test`        | The kit patch: all 24 keys of the StruckKit map's two octaves sound, stay finite and free their voice; the map repeats every 24 notes; a closed hat chokes an open hat but not a crash; a muted triangle chokes an open one; the GM map plays its notes (kit and percussion), leaves unmodelled ones silent and keeps the hat choke |
 
 `pm-drumkit-render [out-dir]` is a measuring bench, not a CTest: for each drum it prints decay
-times, partials, pitch bend, wire duration, band energies and cymbal bloom over time, and writes
-listening WAVs when given a directory.
+times, partials, pitch bend, wire duration, band energies and cymbal bloom over time, and the
+percussion octave's levels, decays and spectra, and writes listening WAVs when given a directory.
 
 ## Running a single test
 

@@ -132,6 +132,9 @@ private:
             DrumKitParamItemTomPosition,   DrumKitParamItemTomReso,
             DrumKitParamItemHatSize,       DrumKitParamItemHatThin,
             DrumKitParamItemHatSizzle,
+            DrumKitParamItemCongaTune,     DrumKitParamItemBongoTune,
+            DrumKitParamItemTimbaleTune,   DrumKitParamItemHandRing,
+            DrumKitParamItemPercTune,      DrumKitParamItemPercDecay,
         };
         if (paramIndex >= kParamCount)
             return 0;

@@ -11,21 +11,29 @@ kit from one instance.
 from PolygraphModularUnified's `DrumKit`, the drums are physical models voiced for an authentic
 acoustic sound rather than to match PMU.
 
-**Key map** (Master panel): **StruckKit** — the note's pitch class picks the drum, repeating every octave —
-or **General MIDI** note numbers.
+**Key map** (Master panel): **StruckKit** — two octaves repeating every 24 notes: the kit on 36–47,
+60–71, …, the percussion on 48–59, 72–83, … — or **General MIDI** note numbers.
 
-| StruckKit key | Drum | GM notes |
-|---|---|---|
-| C / D | Kick / Kick 2 | 36 / 35 |
-| E / F | Snare / rimshot | 38, 40 / 37 |
-| G / A / B | Toms: 16" floor / 12" / 10" | 41, 43 / 45, 47 / 48, 50 |
-| C# / D# | Crash 1 / Crash 2 | 49, 52 / 57, 55 |
-| F# / G# / A# | Hi-hat open / half / closed | 46 / — / 42, 44 |
-| — | Ride / ride bell (GM only) | 51, 59 / 53 |
+| StruckKit key | Kit octave | Percussion octave | GM notes (kit / percussion) |
+|---|---|---|---|
+| C | Kick | Tumba (low conga) | 36 / 64 |
+| C# | Crash 1 | Cowbell | 49, 52 / 56 |
+| D | Kick 2 | Conga | 35 / 63 |
+| D# | Crash 2 | Claves | 57, 55 / 75 |
+| E | Snare | Conga, muted | 38, 40 / 62 |
+| F | Rimshot | Bongo, hembra (low) | 37 / 61 |
+| F# | Hi-hat open | Wood block | 46 / 76 |
+| G | Floor tom (16") | Bongo, macho (high) | 41, 43 / 60 |
+| G# | Hi-hat half | Triangle, muted | — / 80 |
+| A | Rack tom (12") | Timbale, low | 45, 47 / 66 |
+| A# | Hi-hat closed | Triangle, open | 42, 44 / 81 |
+| B | Rack tom (10") | Timbale, high | 48, 50 / 65 |
+| — | Ride / ride bell, agogo high / low, low wood block (GM only) | | 51, 59 / 53, 67 / 68, 77 |
 
-Unlisted GM percussion (clap, cowbell, Latin) is silent. The hi-hats share a choke group across
-voices (a `ChokeGroupState` shared through `ModuleSharedState`), so a closed hat cuts a ringing open
-one. Fixed 16-voice polyphony, oldest stolen; every drum rings out past note-off.
+Unlisted GM percussion (clap, tambourine, maracas, cabasa, guiro, whistles, cuica, vibraslap) is
+silent. The hi-hats share a choke group across voices (a `ChokeGroupState` shared through
+`ModuleSharedState`), so a closed hat cuts a ringing open one; the two triangles share another, so a
+muted triangle cuts an open one. Fixed 16-voice polyphony, oldest stolen; every drum rings out past note-off.
 
 | Drum | Model |
 |---|---|
@@ -34,10 +42,16 @@ one. Fixed 16-voice polyphony, oldest stolen; every drum rings out past note-off
 | Crashes, ride | A free-edge bronze plate: ~1000 modes, low ones exact (`tools/gen_plate_modes.py`), the rest semiclassical; dome stiffening, strike-radius weighting, 1/f material loss, size-dependent radiation; a nonlinear, energy-conserving cascade whose strength follows the rim's swing against the thickness, so hard strokes on thin cymbals bloom into a wash (`Cymbal.hpp`, `ResonatorBank.hpp`). |
 | Hi-hats | The same plate with the bottom cymbal as a contact at the rim: open, chattering half-open, clamped closed. |
 | Kicks | PMU's additive kick, still to be modelled. |
+| Congas, bongos, timbales | Single-headed drums open at the bottom: the membrane's own modes (no air-coupled pair), the (0,1) mode losing its energy down the shell so the (1,1) carries the pitch; hand contact times for congas and bongos, a steep rawhide-like damping tilt, and a muted conga as the open one with the hand left on the head; timbales are stick-played with a ringing metal shell. |
+| Cowbell, agogo, claves, wood blocks, triangle | Struck idiophones on the modal bank: bell, bar and block mode series (some approximate, marked in the source); the triangle is a bent steel rod's free-free modes split into close in-/out-of-plane pairs. |
+
+Toms and hand drums also render the head's modes above the mode table (beyond ~7.5 f0, too dense
+for the bank) as band-split noise whose level follows from the membrane's mode density.
 
 Each control is a physical quantity: Crash 1 / 2 Size (diameter), Thin, Decay, Stroke (shoulder on
 the edge ↔ tip on the bow); Snare Tune, Ring, Position, Tension (wires), Wires; Tom Tune, Ring,
-Position, Reso; Hat Size, Thin, Sizzle. Constants that are set by ear rather than derived are marked
+Position, Reso; Hat Size, Thin, Sizzle; Conga / Bongo / Timbale Tune, Hand Ring; Perc Tune (all the
+small percussion, ±5 semitones), Perc Decay. Constants that are set by ear rather than derived are marked
 as such in the source.
 
 `pm-drumkit-render [out-dir]` is the measuring bench: decay, partials, pitch bend, band energies and

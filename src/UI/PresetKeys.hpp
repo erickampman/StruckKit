@@ -35,6 +35,12 @@ static constexpr PresetKey kPresetKeys[kParamCount] = {
    /*HatSize*/       {"Hats",   "size"},
    /*HatThin*/       {"Hats",   "thin"},
    /*HatSizzle*/     {"Hats",   "sizzle"},
+   /*CongaTune*/     {"HandDrums", "congaTune"},
+   /*BongoTune*/     {"HandDrums", "bongoTune"},
+   /*TimbaleTune*/   {"HandDrums", "timbaleTune"},
+   /*HandRing*/      {"HandDrums", "ring"},
+   /*PercTune*/      {"Percussion", "tune"},
+   /*PercDecay*/     {"Percussion", "decay"},
 };
 
 } // namespace struckkit

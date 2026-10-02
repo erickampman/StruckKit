@@ -10,6 +10,8 @@
 //      crash  cymbal plate model with the nonlinear cascade (Cymbal.hpp); ride in the GM map
 //      hats   cymbal plate model with the two-cymbal contact
 //      kick   PMU's additive kick — a swept sine; still to be modelled
+//      hand   congas, bongos, timbales: single-headed open drums on the same membrane physics
+//      perc   cowbell, agogo, claves, wood blocks, triangle: struck bars and bells on the modal bank
 //
 
 #include "DrumKitModule.hpp"
@@ -35,17 +37,47 @@ enum DrumVoiceType : int {
     DrumCrash1, DrumCrash2,
     DrumHatOpen, DrumHatHalf, DrumHatClosed,
     DrumRide, DrumRideBell,           // General MIDI map only
+    DrumCongaLow, DrumCongaHigh, DrumCongaMute,
+    DrumBongoLow, DrumBongoHigh,
+    DrumTimbaleLow, DrumTimbaleHigh,
+    DrumCowbell, DrumClaves, DrumWoodBlockHigh,
+    DrumTriangleMute, DrumTriangleOpen,
+    DrumAgogoHigh, DrumAgogoLow, DrumWoodBlockLow,   // General MIDI map only
 };
 
 enum DrumKeyMap : int { DrumKeyMapStruckKit = 0, DrumKeyMapGM = 1 };
 
-// Only the three hi-hats choke, and they all share this one group.
-static constexpr uint32_t kHatChokeGroup = 1;   // != ChokeGroupState::NoChokeGroup
+// The three hi-hats choke each other, and so do the two triangles (a mute is the hand closing on
+// a ringing triangle). != ChokeGroupState::NoChokeGroup.
+static constexpr uint32_t kHatChokeGroup      = 1;
+static constexpr uint32_t kTriangleChokeGroup = 2;
 
-// StruckKit map: note % 12 -> drum. Octave-independent: every C is a kick, every A# a closed hat, etc.
-// White keys = drums, black keys = crashes (C#,D#) and hats (F#,G#,A#).
+// StruckKit map: two octaves that repeat every 24 notes, anchored so C1 (36) and middle C (60) start
+// the kit octave: 36-47, 60-71, ... are the kit, 48-59, 72-83, ... the percussion. In both, white
+// keys are drums; in the kit the black keys are crashes (C#,D#) and hats (F#,G#,A#), in the
+// percussion the small metal and wood instruments.
+static inline DrumVoiceType drumForNotePercussion(int pitchClass) {
+    switch (pitchClass) {
+        case 0:  return DrumCongaLow;     // C   tumba, open tone
+        case 1:  return DrumCowbell;      // C#
+        case 2:  return DrumCongaHigh;    // D   conga, open tone
+        case 3:  return DrumClaves;       // D#
+        case 4:  return DrumCongaMute;    // E   conga, muted
+        case 5:  return DrumBongoLow;     // F   hembra
+        case 6:  return DrumWoodBlockHigh;// F#
+        case 7:  return DrumBongoHigh;    // G   macho
+        case 8:  return DrumTriangleMute; // G#
+        case 9:  return DrumTimbaleLow;   // A
+        case 10: return DrumTriangleOpen; // A#
+        case 11: return DrumTimbaleHigh;  // B
+    }
+    return DrumNone;
+}
+
 static inline DrumVoiceType drumForNoteStruckKit(uint8_t noteNumber) {
-    switch (noteNumber % 12) {
+    const int k = ((int)noteNumber + 12) % 24;
+    if (k >= 12) return drumForNotePercussion(k - 12);
+    switch (k) {
         case 0:  return DrumKick;        // C
         case 1:  return DrumCrash1;      // C#
         case 2:  return DrumKick2;       // D
@@ -65,7 +97,7 @@ static inline DrumVoiceType drumForNoteStruckKit(uint8_t noteNumber) {
 // General MIDI percussion map (GM1 key numbers). Kit pieces StruckKit has map to themselves;
 // GM's variants map to the nearest piece (a pedal hat is a closed hat, splash and china are the
 // smaller and larger crash, side stick is the rimshot). Percussion it has no model for — clap,
-// tambourine, cowbell, Latin percussion — stays silent.
+// tambourine, maracas, cabasa, guiro, whistles, cuica, vibraslap — stays silent.
 static inline DrumVoiceType drumForNoteGM(uint8_t noteNumber) {
     switch (noteNumber) {
         case 35: return DrumKick2;       // Acoustic Bass Drum
@@ -88,7 +120,22 @@ static inline DrumVoiceType drumForNoteGM(uint8_t noteNumber) {
         case 53: return DrumRideBell;    // Ride Bell
         case 55: return DrumCrash2;      // Splash Cymbal
         case 57: return DrumCrash2;      // Crash Cymbal 2
+        case 56: return DrumCowbell;     // Cowbell
         case 59: return DrumRide;        // Ride Cymbal 2
+        case 60: return DrumBongoHigh;   // Hi Bongo
+        case 61: return DrumBongoLow;    // Low Bongo
+        case 62: return DrumCongaMute;   // Mute Hi Conga
+        case 63: return DrumCongaHigh;   // Open Hi Conga
+        case 64: return DrumCongaLow;    // Low Conga
+        case 65: return DrumTimbaleHigh; // High Timbale
+        case 66: return DrumTimbaleLow;  // Low Timbale
+        case 67: return DrumAgogoHigh;   // High Agogo
+        case 68: return DrumAgogoLow;    // Low Agogo
+        case 75: return DrumClaves;      // Claves
+        case 76: return DrumWoodBlockHigh; // Hi Wood Block
+        case 77: return DrumWoodBlockLow;  // Low Wood Block
+        case 80: return DrumTriangleMute;  // Mute Triangle
+        case 81: return DrumTriangleOpen;  // Open Triangle
         default: return DrumNone;
     }
 }
@@ -97,13 +144,16 @@ static inline DrumVoiceType drumForNote(uint8_t noteNumber, int keyMap) {
     return (keyMap == DrumKeyMapGM) ? drumForNoteGM(noteNumber) : drumForNoteStruckKit(noteNumber);
 }
 
-// Choke group a drum belongs to. Only the hats choke; everything else rings.
+// Choke group a drum belongs to. Only the hats and the triangles choke; everything else rings.
 static inline uint32_t chokeGroupForDrum(DrumVoiceType drum) {
     switch (drum) {
         case DrumHatOpen:
         case DrumHatHalf:
         case DrumHatClosed:
             return kHatChokeGroup;
+        case DrumTriangleMute:
+        case DrumTriangleOpen:
+            return kTriangleChokeGroup;
         default:
             return ChokeGroupState::NoChokeGroup;
     }
@@ -223,6 +273,10 @@ struct DrumKitState {
     double        cachedRho = -1.0;
     double        strikeWeights[kMembraneIndexCount] = {};
 
+    // Timbales: the metal shell's ring modes, on wireBank (unused by every drum but the snare).
+    ModalMode     shellModes[8] = {};
+    ModalMaterial shellMaterial { shellModes, 0, "TimbaleShell" };
+
     // Crashes and hi-hats: the plate model (see Cymbal.hpp). Rebuilt only when its configuration
     // changes; like the drum banks it keeps ringing through a re-strike of the same cymbal.
     Cymbal        cymbal;
@@ -255,7 +309,20 @@ static inline void contactRange(DrumVoiceType drum, double& hardSec, double& sof
     switch (drum) {
         case DrumSnare:  hardSec = 0.00025; softSec = 0.0010; break;
         case DrumSnare2: hardSec = 0.00025; softSec = 0.00025; force = 2.3; break;
-        default:         hardSec = 0.0003;  softSec = 0.0012; break;   // toms: stick on a looser head
+        // Hands are soft and heavy next to a stick: fingers on a conga stay in contact a few ms,
+        // the bongo's quick finger snap less. Timbales, cowbell, agogo and blocks are stick on
+        // something hard; claves are wood on wood, the triangle a steel beater on steel (set by ear).
+        case DrumCongaLow: case DrumCongaHigh: case DrumCongaMute:
+                         hardSec = 0.0006;  softSec = 0.0025; break;
+        case DrumBongoLow: case DrumBongoHigh:
+                         hardSec = 0.0004;  softSec = 0.0015; break;
+        case DrumCowbell: case DrumAgogoHigh: case DrumAgogoLow:
+        case DrumWoodBlockHigh: case DrumWoodBlockLow:
+                         hardSec = 0.00015; softSec = 0.0006; break;
+        case DrumClaves: hardSec = 0.00012; softSec = 0.0003; break;
+        case DrumTriangleMute: case DrumTriangleOpen:
+                         hardSec = 0.00005; softSec = 0.00015; break;
+        default:         hardSec = 0.0003;  softSec = 0.0012; break;   // toms, timbales: stick on a head
     }
 }
 
@@ -299,14 +366,17 @@ static inline void renderStrike(DrumKitState* st, float* ex, int n) {
 // sound (monopoleGain) and lose their energy to the air sooner (axisymDamp, a T60 factor). Each
 // pair mode can carry an extra T60 factor (e.g. snare wires damping the resonant head). Returns the
 // table's total squared amplitude, which ModalBank normalises away.
+static inline void cacheStrikeWeights(DrumKitState* st, double rho) {
+    if (rho == st->cachedRho) return;
+    for (int k = 0; k < kMembraneIndexCount; ++k) {
+        st->strikeWeights[k] = Membrane::strikeWeight(kMembraneIndex[k], rho);
+    }
+    st->cachedRho = rho;
+}
+
 static double fillHeadModes(DrumKitState* st, double rho, const Membrane::CoupledMode pair[2],
                             const double pairExtraDamp[2], double monopoleGain, double axisymDamp) {
-    if (rho != st->cachedRho) {
-        for (int k = 0; k < kMembraneIndexCount; ++k) {
-            st->strikeWeights[k] = Membrane::strikeWeight(kMembraneIndex[k], rho);
-        }
-        st->cachedRho = rho;
-    }
+    cacheStrikeWeights(st, rho);
     const double j01 = kMembraneIndex[0].j;
     double energy = 0.0;
     int nb = 0;
@@ -319,6 +389,24 @@ static double fillHeadModes(DrumKitState* st, double rho, const Membrane::Couple
         const MembraneModeIndex& m = kMembraneIndex[k];
         const double amp = st->strikeWeights[k] * ((m.m == 0) ? monopoleGain : 1.0);
         st->bodyModes[nb++] = { (float)(m.j / j01), (float)amp, (float)((m.m == 0) ? axisymDamp : 1.0) };
+        energy += amp * amp;
+    }
+    st->bodyMaterial.count = nb;
+    return energy;
+}
+
+// A single-headed drum open at the bottom (conga, bongo, timbale): no enclosed air, so no coupled
+// pair; every mode is the batter's own. The (0,1) mode is the one that pumps air down the shell
+// and out of the open end, so it loses its energy quickly (axisymDamp), which is why such a drum's
+// pitch is heard in its (1,1) mode rather than its lowest.
+static double fillSingleHeadModes(DrumKitState* st, double rho, double monopoleGain, double axisymDamp) {
+    cacheStrikeWeights(st, rho);
+    double energy = 0.0;
+    int nb = 0;
+    for (int k = 0; k < kMembraneIndexCount && nb < ModalBank::kMaxModes; ++k) {
+        const MembraneModeIndex& m = kMembraneIndex[k];
+        const double amp = st->strikeWeights[k] * ((m.m == 0) ? monopoleGain : 1.0);
+        st->bodyModes[nb++] = { (float)(m.j / kMembraneIndex[0].j), (float)amp, (float)((m.m == 0) ? axisymDamp : 1.0) };
         energy += amp * amp;
     }
     st->bodyMaterial.count = nb;
@@ -691,6 +779,268 @@ static void renderTom(DrumKitState* st, Module* module, float level,
     if (st->strikePos < 0 && t > 0.1 && st->bank.isSilent(kModalSilence)) { st->playing = false; }
 }
 
+// ---- Hand drums: congas, bongos, timbales ----
+//
+// Single-headed drums open at the bottom (see fillSingleHeadModes): the head's own modes, the
+// residual above them, and the tension-modulation bend the toms have. What tells them apart:
+//
+//   congas    tall staves, rawhide-like heads (high-frequency loss: a steep damping tilt), played
+//             with the fingers near the edge, so the m >= 1 modes carry the tone. The mute is the
+//             open conga with the hand left on the head: everything dies within ~0.1 s;
+//   bongos    small and tight, the same hand on a smaller head: higher, shorter, snappier;
+//   timbales  thin plastic heads on metal shells, played with sticks: a longer ring, a gentler
+//             tilt, and the shell itself rings (a handful of inharmonic shell modes on wireBank).
+//
+// Each family's Tune knob is head tension, moving its drums together and keeping their sizes'
+// interval. The ranges put typical tunings' open tones (the (1,1) mode, ~1.59 f0) at: tumba
+// ~150-220 Hz, conga ~215-320, hembra ~350-510, macho ~490-720, timbales ~270-510 (set by ear).
+
+struct HandDrumSpec {
+    double f0Lo, f0Hi;      // batter (0,1) in vacuo across the Tune knob, Hz
+    double rho;             // strike radius
+    double ringScale;       // T60 relative to Hand Ring's
+    float  tilt;            // damping tilt
+    double monopoleGain;
+    double axisymDamp;
+    double bend;            // fractional pitch rise of a full stroke
+    double level;
+    double shellHz;         // 0 = no shell ring (timbales only)
+};
+
+static inline HandDrumSpec handDrumSpec(DrumVoiceType drum) {
+    switch (drum) {
+        //                                 f0 range      rho   ring  tilt  mono  axis  bend   level shell
+        case DrumCongaLow:    return {  95.0, 140.0,  0.82,  1.3,  1.0f, 2.0,  0.3,  0.03,  0.47,    0.0 };
+        case DrumCongaMute:   return { 135.0, 200.0,  0.78,  0.08, 1.6f, 2.0,  0.3,  0.02,  0.85,    0.0 };
+        case DrumBongoLow:    return { 220.0, 320.0,  0.88,  0.7,  0.9f, 1.6,  0.35, 0.04,  0.65,    0.0 };
+        case DrumBongoHigh:   return { 310.0, 450.0,  0.88,  0.6,  0.9f, 1.6,  0.35, 0.04,  0.72,    0.0 };
+        case DrumTimbaleLow:  return { 170.0, 250.0,  0.60,  1.4,  0.5f, 2.0,  0.4,  0.05,  0.33,  950.0 };
+        case DrumTimbaleHigh: return { 220.0, 320.0,  0.60,  1.3,  0.5f, 2.0,  0.4,  0.05,  0.33, 1080.0 };
+        default:              return { 135.0, 200.0,  0.82,  1.2,  1.0f, 2.0,  0.3,  0.03,  0.63,    0.0 };   // conga
+    }
+}
+
+static inline bool isHandDrum(DrumVoiceType d) {
+    return d == DrumCongaLow || d == DrumCongaHigh || d == DrumCongaMute
+        || d == DrumBongoLow || d == DrumBongoHigh || d == DrumTimbaleLow || d == DrumTimbaleHigh;
+}
+
+static inline DrumKitParamItem handTuneParam(DrumVoiceType d) {
+    if (d == DrumBongoLow || d == DrumBongoHigh)     return DrumKitParamItemBongoTune;
+    if (d == DrumTimbaleLow || d == DrumTimbaleHigh) return DrumKitParamItemTimbaleTune;
+    return DrumKitParamItemCongaTune;
+}
+
+// A thin metal shell's ring modes, relative to its lowest. APPROXIMATE: the shape of the series
+// (inharmonic, rising a little faster than linear) is a cylindrical shell's, but the values and
+// amplitudes are set by ear, pending measurements of a real timbale.
+static constexpr ModalMode kTimbaleShellModes[] = {
+    { 1.00f, 1.00f, 1.0f }, { 1.47f, 0.80f, 1.0f }, { 2.09f, 0.60f, 1.0f },
+    { 2.81f, 0.45f, 1.0f }, { 3.62f, 0.30f, 1.0f }, { 4.55f, 0.20f, 1.0f },
+};
+static constexpr int    kTimbaleShellCount = (int)(sizeof(kTimbaleShellModes) / sizeof(kTimbaleShellModes[0]));
+static constexpr double kTimbaleShellLevel = 0.12;   // against the head (set by ear)
+static constexpr double kTimbaleShellT60   = 1.4;    // at Hand Ring's centre
+
+static void renderHandDrum(DrumKitState* st, Module* module, float level,
+                           float* outL, float* outR, uint32_t count) {
+    const double       sr   = st->sampleRate;
+    const HandDrumSpec spec = handDrumSpec(st->drum);
+
+    // --- controls ---
+    const double f0       = mapExp(module->getParamValue(handTuneParam(st->drum)), spec.f0Lo, spec.f0Hi);
+    const float  ringKnob = module->getParamValue(DrumKitParamItemHandRing);
+    const double t60      = mapExp(ringKnob, 0.3, 2.5) * spec.ringScale;
+
+    // --- head ---
+    const double bodyEnergy = fillSingleHeadModes(st, spec.rho, spec.monopoleGain, spec.axisymDamp);
+    st->bank.setMaterial(st->bodyMaterial);
+    st->bank.invalidate();
+    st->bank.setModeCount(st->bodyMaterial.count);
+    st->bank.setDecayT60((float)t60);
+    st->bank.setDampTilt(spec.tilt);
+    st->bank.setBrightness(0.0f);
+
+    // --- shell (timbales) ---
+    const bool shell = spec.shellHz > 0.0;
+    if (shell) {
+        std::copy(std::begin(kTimbaleShellModes), std::end(kTimbaleShellModes), st->shellModes);
+        st->shellMaterial.count = kTimbaleShellCount;
+        st->wireBank.setMaterial(st->shellMaterial);
+        st->wireBank.invalidate();
+        st->wireBank.setModeCount(kTimbaleShellCount);
+        st->wireBank.setDecayT60((float)(kTimbaleShellT60 * mapExp(ringKnob, 0.5, 2.0)));
+        st->wireBank.setDampTilt(0.3f);
+        st->wireBank.setBrightness(0.0f);
+        st->wireBank.setFundamental((float)spec.shellHz);
+    }
+
+    // Bend as the toms': the (1,1) carries the pitch here, so follow its decay.
+    const double pitchT60 = t60 * std::pow(kMembraneIndex[1].j / kMembraneIndex[0].j, -(double)spec.tilt);
+    const double bendTau  = pitchT60 / (2.0 * kLn1000);
+    const double bend     = spec.bend * (double)st->velAmp * (double)st->velAmp;
+
+    const float  bodyGain  = (float)(spec.level * kOutScale) * level * kModalPanComp;
+    const float  shellGain = (float)(spec.level * kTimbaleShellLevel * kOutScale) * level * kModalPanComp;
+
+    BiquadBP residBP[DrumKitState::kResidualBands];
+    double   residGain[DrumKitState::kResidualBands], residTau[DrumKitState::kResidualBands];
+    const int    nr         = setupResidual(st, f0, bodyEnergy, t60, (double)spec.tilt, residBP, residGain, residTau);
+    const double residScale = spec.level * kOutScale * (double)level;
+    const double contactSec = (double)st->strikeLen / sr;
+
+    float ex[kModalSubBlock], bL[kModalSubBlock], bR[kModalSubBlock], sL[kModalSubBlock], sR[kModalSubBlock];
+    double t = (double)st->agePos / sr;
+
+    for (uint32_t base = 0; base < count; base += kModalSubBlock) {
+        const int n = (int)std::min<uint32_t>(kModalSubBlock, count - base);
+        const double tMid = ((double)st->agePos + 0.5 * n) / sr;
+        st->bank.setFundamental((float)(f0 * (1.0 + bend * std::exp(-tMid / bendTau))));
+
+        renderStrike(st, ex, n);
+        st->bank.processBlock(ex, bL, bR, n);
+        if (shell) st->wireBank.processBlock(ex, sL, sR, n);
+
+        for (int i = 0; i < n; ++i) {
+            t = (double)st->agePos / sr;
+            const float hit = (float)(renderResidual(st, nr, residBP, residGain, residTau, t, contactSec) * residScale);
+            float l = bL[i] * bodyGain + hit, r = bR[i] * bodyGain + hit;
+            if (shell) { l += sL[i] * shellGain; r += sR[i] * shellGain; }
+            outL[base + i] = l;
+            outR[base + i] = r;
+            st->agePos++;
+        }
+    }
+
+    if (st->strikePos < 0 && t > 0.05 && st->bank.isSilent(kModalSilence)
+        && (!shell || st->wireBank.isSilent(kModalSilence))) {
+        st->playing = false;
+    }
+}
+
+// ---- Percussion: cowbell, agogo, claves, wood blocks, triangle ----
+//
+// Struck idiophones: a mode table rung by the strike burst, no head and no residual (their modes
+// are sparse enough to hold in the bank). Perc Tune scales all their sizes together (+-5
+// semitones), Perc Decay their ring (x0.5 .. x2).
+//
+//   cowbell, agogo  a bent-sheet bell and a cone bell: two strong low modes about a fifth apart,
+//                   the cowbell's "clank", then weaker inharmonic ones. APPROXIMATE, set by ear
+//                   pending measurement; the agogo bells use the same series, smaller and freer;
+//   claves          a hardwood rod: the free-free bar (ModalMaterials kBarModes), but held so that
+//                   only its first mode really rings, and wood kills the rest;
+//   wood blocks     a slotted hollow block: one strong cavity-coupled mode and a few weak ones,
+//                   very short. APPROXIMATE, set by ear;
+//   triangle        a bent steel rod: free-free bar ratios (bL = (2n+1) pi / 2 beyond the first
+//                   few roots) out to ~15 kHz, each split into a close pair (the rod bends in and
+//                   out of its plane at almost the same frequency, which is the shimmer). A thin
+//                   rod radiates its low modes poorly (it is far smaller than their wavelength), so
+//                   amplitude rises up the series, as sqrt(ratio) (set by ear): the 180 Hz
+//                   fundamental is barely there, and the sound is its 1-10 kHz partials. The mute is the hand closing on it, and chokes an open triangle.
+
+struct PercSpec {
+    const ModalMode* modes;   // null = the triangle, generated
+    int              count;
+    double           f0;      // Hz at Perc Tune centre
+    double           t60;     // s at Perc Decay centre
+    float            tilt;
+    double           level;
+};
+
+static constexpr ModalMode kCowbellModes[] = {
+    { 1.00f, 1.00f, 1.0f }, { 1.50f, 0.90f, 1.0f }, { 2.07f, 0.35f, 1.0f },
+    { 2.62f, 0.30f, 1.0f }, { 3.30f, 0.20f, 1.0f }, { 4.25f, 0.15f, 1.0f }, { 5.50f, 0.10f, 1.0f },
+};
+static constexpr ModalMode kClavesModes[] = {
+    { 1.0000f, 1.00f, 1.0f }, { 2.7565f, 0.15f, 1.0f }, { 5.4039f, 0.05f, 1.0f },
+};
+static constexpr ModalMode kWoodBlockModes[] = {
+    { 1.00f, 1.00f, 1.0f }, { 1.92f, 0.35f, 1.0f }, { 2.85f, 0.25f, 1.0f }, { 3.90f, 0.15f, 1.0f },
+};
+#define PERC_TABLE(t) t, (int)(sizeof(t) / sizeof(t[0]))
+
+static inline PercSpec percSpec(DrumVoiceType drum) {
+    switch (drum) {
+        //                                              f0      t60    tilt   level
+        case DrumAgogoHigh:     return { PERC_TABLE(kCowbellModes),   1000.0, 0.90,  0.5f,  0.30 };
+        case DrumAgogoLow:      return { PERC_TABLE(kCowbellModes),    760.0, 1.00,  0.5f,  0.30 };
+        case DrumClaves:        return { PERC_TABLE(kClavesModes),    2500.0, 0.25,  1.5f,  0.55 };
+        case DrumWoodBlockHigh: return { PERC_TABLE(kWoodBlockModes), 1150.0, 0.09,  1.2f,  0.52 };
+        case DrumWoodBlockLow:  return { PERC_TABLE(kWoodBlockModes),  820.0, 0.10,  1.2f,  0.52 };
+        case DrumTriangleOpen:  return { nullptr, 0,                    180.0, 4.00,  0.15f, 0.22 };
+        case DrumTriangleMute:  return { nullptr, 0,                    180.0, 0.12,  0.15f, 0.22 };
+        default:                return { PERC_TABLE(kCowbellModes),    560.0, 0.35,  0.6f,  0.38 };   // cowbell
+    }
+}
+#undef PERC_TABLE
+
+static inline bool isPerc(DrumVoiceType d) {
+    return d == DrumCowbell || d == DrumAgogoHigh || d == DrumAgogoLow || d == DrumClaves
+        || d == DrumWoodBlockHigh || d == DrumWoodBlockLow || d == DrumTriangleMute || d == DrumTriangleOpen;
+}
+
+static constexpr double kTriangleSplit    = 0.004;   // in/out-of-plane pair, fractional (set by ear)
+static constexpr double kTriangleTopRatio = 85.0;    // ~15 kHz at the centre tuning
+static constexpr double kTriangleChokeTau = 0.03;    // s
+
+// The triangle's table: free-free bar roots, each mode as a close pair. Returns the mode count.
+static int fillTriangleModes(ModalMode* out, int maxModes) {
+    static constexpr double kRoots[] = { 4.73004, 7.85320, 10.99561, 14.13717 };
+    int n = 0;
+    for (int k = 0; n + 2 <= maxModes; ++k) {
+        const double bl    = (k < 4) ? kRoots[k] : (2.0 * k + 3.0) * M_PI / 2.0;
+        const double ratio = (bl / kRoots[0]) * (bl / kRoots[0]);
+        if (ratio > kTriangleTopRatio) break;
+        const float amp = (float)std::sqrt(ratio);   // radiation rising with frequency
+        out[n++] = { (float)(ratio * (1.0 - kTriangleSplit)), amp, 1.0f };
+        out[n++] = { (float)(ratio * (1.0 + kTriangleSplit)), amp, 1.0f };
+    }
+    return n;
+}
+
+static void renderPerc(DrumKitState* st, Module* module, float level,
+                       float* outL, float* outR, uint32_t count) {
+    const PercSpec spec  = percSpec(st->drum);
+    const double   tune  = mapExp(module->getParamValue(DrumKitParamItemPercTune), 0.7491535, 1.3348399);  // +-5 st
+    const double   decay = mapExp(module->getParamValue(DrumKitParamItemPercDecay), 0.5, 2.0);
+
+    int nb;
+    if (spec.modes) {
+        nb = std::min(spec.count, ModalBank::kMaxModes);
+        std::copy(spec.modes, spec.modes + nb, st->bodyModes);
+    } else {
+        nb = fillTriangleModes(st->bodyModes, ModalBank::kMaxModes);
+    }
+    st->bodyMaterial.count = nb;
+    st->bank.setMaterial(st->bodyMaterial);
+    st->bank.invalidate();
+    st->bank.setModeCount(nb);
+    st->bank.setFundamental((float)(spec.f0 * tune));
+    st->bank.setDecayT60((float)(spec.t60 * decay));
+    st->bank.setDampTilt(spec.tilt);
+    st->bank.setBrightness(0.0f);
+
+    const float gain = (float)(spec.level * kOutScale) * level * kModalPanComp;
+    const float chokePerSample = (float)std::exp(-1.0 / (st->sampleRate * kTriangleChokeTau));
+    float ex[kModalSubBlock], bL[kModalSubBlock], bR[kModalSubBlock];
+
+    for (uint32_t base = 0; base < count; base += kModalSubBlock) {
+        const int n = (int)std::min<uint32_t>(kModalSubBlock, count - base);
+        renderStrike(st, ex, n);
+        st->bank.processBlock(ex, bL, bR, n);
+        for (int i = 0; i < n; ++i) {
+            if (st->choked) st->chokeGain *= chokePerSample;
+            outL[base + i] = bL[i] * gain * st->chokeGain;
+            outR[base + i] = bR[i] * gain * st->chokeGain;
+        }
+        st->agePos += (uint64_t)n;
+    }
+
+    if (st->strikePos < 0 && (st->bank.isSilent(kModalSilence) || (st->choked && st->chokeGain < 1.0e-4f))) {
+        st->playing = false;
+    }
+}
+
 // ---- Cymbals: crashes, ride and hi-hats ----
 //
 // Plate models (Cymbal.hpp); the knobs are physical quantities:
@@ -988,6 +1338,10 @@ const KPBuffPair* ProcessDrumKitModule(uint64_t /*processCallID*/, uint32_t coun
         renderTom(st, module, level, outL, outR, count);
     } else if (st->playing && isCymbal(st->drum)) {
         renderCymbal(st, module, level, outL, outR, count);
+    } else if (st->playing && isHandDrum(st->drum)) {
+        renderHandDrum(st, module, level, outL, outR, count);
+    } else if (st->playing && isPerc(st->drum)) {
+        renderPerc(st, module, level, outL, outR, count);
     } else {
         // Idle / unassigned voice.
         std::fill_n(outL, count, 0.0f);

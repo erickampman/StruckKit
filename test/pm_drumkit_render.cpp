@@ -194,6 +194,19 @@ static void reportTom(const char* name, uint8_t note, uint16_t vel, const Params
    std::printf("  %-24s partials:%s\n", "", peaks(s, 0.05, 0.3).c_str());
 }
 
+// Percussion octave: peak, decay, the band split over the first 100 ms, and the strongest partials
+// early in the note.
+static void reportPerc(const char* name, uint8_t note, uint16_t vel, const Params& p) {
+   const Stereo s = render({ { 0.0, note, vel } }, 5.0, p);
+   double peak = 0.0;
+   for (size_t i = 0; i < s.L.size(); ++i) peak = std::max(peak, std::fabs(mid(s, i)));
+   double b[5];
+   bands(s, 0.0, 0.1, b);
+   std::printf("  %-22s peak %4.2f  -20/-40 dB %5.0f/%5.0f ms  <400 %4.1f%% 400-1.2k %4.1f%% 1.2-3k %4.1f%% 3-8k %4.1f%% >8k %4.1f%%\n",
+               name, peak, 1000 * decayTo(s, 20), 1000 * decayTo(s, 40), b[0], b[1], b[2], b[3], b[4]);
+   std::printf("  %-22s partials:%s\n", "", peaks(s, 0.01, 0.1).c_str());
+}
+
 // Cymbals: peak, then per time window the level, spectral centroid and share above 6 kHz — a
 // crash's bloom shows as the centroid and the >6k share climbing after the hit.
 static void reportCymbal(const char* name, uint8_t note, uint16_t vel, const Params& p) {
@@ -243,6 +256,19 @@ int main(int argc, char** argv) {
    reportTom("rack 12\", edge hit", A, 0xFFFF, { { DrumKitParamItemTomPosition, 1.0f } });
    reportTom("floor, ring 0", G, 0xFFFF, { { DrumKitParamItemTomRing, 0.0f } });
    reportTom("floor, ring 1", G, 0xFFFF, { { DrumKitParamItemTomRing, 1.0f } });
+
+   std::printf("Percussion octave (vel 1.0):\n");
+   static const struct { const char* name; uint8_t note; } kPerc[] = {
+      { "tumba (C)", 48 }, { "cowbell (C#)", 49 }, { "conga (D)", 50 }, { "claves (D#)", 51 },
+      { "conga mute (E)", 52 }, { "bongo hembra (F)", 53 }, { "wood block (F#)", 54 },
+      { "bongo macho (G)", 55 }, { "triangle mute (G#)", 56 }, { "timbale low (A)", 57 },
+      { "triangle (A#)", 58 }, { "timbale high (B)", 59 },
+   };
+   for (const auto& k : kPerc) reportPerc(k.name, k.note, 0xFFFF, {});
+   reportPerc("conga (D), vel 0.4", 50, 0x6600, {});
+   reportPerc("GM agogo high (67)", 67, 0xFFFF, { { DrumKitParamItemKeyMap, 1.0f } });
+   reportPerc("GM agogo low (68)", 68, 0xFFFF, { { DrumKitParamItemKeyMap, 1.0f } });
+   reportPerc("GM wood block low (77)", 77, 0xFFFF, { { DrumKitParamItemKeyMap, 1.0f } });
 
    const uint8_t Cs = 61, Ds = 63, Fs = 66, Gs = 68, As = 70;
    std::printf("Crash contrast (strongest partials, 50-300 ms):\n");
@@ -336,7 +362,27 @@ int main(int argc, char** argv) {
          seq.push_back({ t, G, 0xFFFF }); t += 2.5;
          writeWav(outDir + "/toms_study.wav", render(seq, t, {}));
       }
-      std::printf("wrote snare_*.wav, toms_study.wav, crash/hihat files to %s\n", outDir.c_str());
+      // Percussion: each key of the octave, then a tumbao on the congas with bongo and cowbell.
+      {
+         std::vector<Hit> seq;
+         double t = 0.0;
+         for (uint8_t n = 48; n < 60; ++n) { seq.push_back({ t, n, 0xE000 }); t += 0.9; }
+         t += 0.5;
+         const double e = 0.15;   // eighth notes at 100 bpm
+         for (int bar = 0; bar < 4; ++bar) {
+            static const struct { int step; uint8_t note; uint16_t vel; } kTumbao[] = {
+               { 0, 52, 0x9000 }, { 2, 52, 0x7000 }, { 3, 50, 0xE000 }, { 4, 52, 0x9000 },
+               { 6, 50, 0xD000 }, { 7, 48, 0xE000 },
+            };
+            for (const auto& h : kTumbao) seq.push_back({ t + h.step * e, h.note, h.vel });
+            for (int i = 0; i < 8; i += 2) seq.push_back({ t + i * e, 49, (uint16_t)(i == 0 ? 0xE000 : 0xA000) });
+            for (int i = 1; i < 8; i += 2) seq.push_back({ t + i * e, 55, 0x9000 });
+            t += 8 * e;
+         }
+         std::sort(seq.begin(), seq.end(), [](const Hit& a, const Hit& b) { return a.at < b.at; });
+         writeWav(outDir + "/perc_study.wav", render(seq, t + 2.0, {}));
+      }
+      std::printf("wrote snare_*.wav, toms_study.wav, perc_study.wav, crash/hihat files to %s\n", outDir.c_str());
    }
    return 0;
 }

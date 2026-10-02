@@ -34,6 +34,16 @@
         "size": "0.670000",
         "thin": "0.450000",
         "sizzle": "0.600000"
+      },
+      "HandDrums": {
+        "congaTune": "0.500000",
+        "bongoTune": "0.500000",
+        "timbaleTune": "0.500000",
+        "ring": "0.500000"
+      },
+      "Percussion": {
+        "tune": "0.500000",
+        "decay": "0.500000"
       }
     }
   }

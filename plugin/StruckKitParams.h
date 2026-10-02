@@ -12,7 +12,7 @@ namespace struckkit {
 enum ParamIndex {
    // --- Master ---
    kParamLevel = 0,      // master output gain
-   kParamKeyMap,         // 0 = StruckKit (pitch class, every octave), 1 = General MIDI
+   kParamKeyMap,         // 0 = StruckKit (repeats every two octaves), 1 = General MIDI
    // --- Crash ---
    kParamCrashSize,      // C# crash diameter
    kParamCrashSize2,     // D# crash diameter
@@ -34,6 +34,14 @@ enum ParamIndex {
    kParamHatSize,        // diameter
    kParamHatThin,        // thickness: heavy <-> thin
    kParamHatSizzle,      // half-open chatter
+   // --- Hand drums (congas, bongos, timbales) ---
+   kParamCongaTune,      // head tension, all three congas
+   kParamBongoTune,      // head tension, both bongos
+   kParamTimbaleTune,    // head tension, both timbales
+   kParamHandRing,       // head damping: muffled <-> open ring
+   // --- Percussion (cowbell, agogo, claves, wood blocks, triangle) ---
+   kParamPercTune,       // size, all together (+-5 semitones)
+   kParamPercDecay,      // short <-> long ring
    kParamCount
 };
 
@@ -73,6 +81,14 @@ static constexpr ParamSpec kParams[kParamCount] = {
    {"Hat Size",       "hatSize",       "", 0.0f, 1.0f, 0.67f,  false, false},
    {"Hat Thin",       "hatThin",       "", 0.0f, 1.0f, 0.45f,  false, false},
    {"Hat Sizzle",     "hatSizzle",     "", 0.0f, 1.0f, 0.60f,  false, false},
+   // Hand drums
+   {"Conga Tune",     "congaTune",     "", 0.0f, 1.0f, 0.50f,  false, false},
+   {"Bongo Tune",     "bongoTune",     "", 0.0f, 1.0f, 0.50f,  false, false},
+   {"Timbale Tune",   "timbaleTune",   "", 0.0f, 1.0f, 0.50f,  false, false},
+   {"Hand Ring",      "handRing",      "", 0.0f, 1.0f, 0.50f,  false, false},
+   // Percussion
+   {"Perc Tune",      "percTune",      "", 0.0f, 1.0f, 0.50f,  false, false},
+   {"Perc Decay",     "percDecay",     "", 0.0f, 1.0f, 0.50f,  false, false},
 };
 
 // Fixed polyphony: enough for rolls under ringing crashes; the oldest voice is stolen beyond it.

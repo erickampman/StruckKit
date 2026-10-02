@@ -1,7 +1,8 @@
 // pm_drumkit_test — the DrumKit voice end to end through VoiceManager (the plugin's patch:
-// DrumKit -> Final). Every pitch class sounds a drum with finite output; voices free after
-// note-off once the hit has rung out; and the cross-voice hi-hat choke (ChokeGroupState via
-// ModuleSharedState) cuts a ringing open hat when a closed hat is struck.
+// DrumKit -> Final). Every key of the StruckKit map's two octaves sounds a drum with finite output;
+// voices free after note-off once the hit has rung out; the map repeats every 24 notes; and the
+// cross-voice chokes (ChokeGroupState via ModuleSharedState) cut a ringing open hat when a closed
+// hat is struck, and an open triangle when a muted one is.
 
 #include "VoiceManager.hpp"
 #include "pm_addresses.h"
@@ -74,15 +75,18 @@ static float peakWindow(uint8_t note, int from, int to, int second = -1, int at 
 }
 
 int main() {
-   static const char* kNames[12] = {
+   static const char* kNames[24] = {
       "C kick", "C# crash1", "D kick2", "D# crash2", "E snare", "F snare2",
       "F# open hat", "G low tom", "G# half hat", "A mid tom", "A# closed hat", "B high tom",
+      "C tumba", "C# cowbell", "D conga", "D# claves", "E conga mute", "F bongo low",
+      "F# wood block", "G bongo high", "G# triangle mute", "A timbale low", "A# triangle", "B timbale high",
    };
 
-   // 1. Every pitch class sounds, stays finite, rings out after note-off, and frees its voice.
-   for (int pc = 0; pc < 12; ++pc) {
+   // 1. Every key of both octaves (kit 36-47, percussion 48-59) sounds, stays finite, rings out
+   //    after note-off, and frees its voice.
+   for (int pc = 0; pc < 24; ++pc) {
       auto vm = makeKit();
-      const uint8_t note = (uint8_t)(48 + pc);
+      const uint8_t note = (uint8_t)(36 + pc);
       Block b;
       float hit = 0.0f;
       bool finite = true;
@@ -106,14 +110,19 @@ int main() {
       CHECK(finite, msg);
       std::snprintf(msg, sizeof(msg), "%s voice freed after ringing out", kNames[pc]);
       CHECK(vm->activeCount() == 0, msg);
-      std::printf("  %-14s peak=%.3f\n", kNames[pc], hit);
+      std::printf("  %-17s peak=%.3f\n", kNames[pc], hit);
    }
 
-   // 2. Same pitch class in another octave is the same drum (mapping is note % 12).
+   // 2. The map repeats every 24 notes: 36 and 84 are the same kick, 48 and 72 the same tumba,
+   //    and the octave between differs (36 kick, 48 tumba).
    {
-      const float lo = peakWindow(36, 0, 4);   // C2 kick
-      const float hi = peakWindow(72, 0, 4);   // C5 kick
-      CHECK(std::fabs(lo - hi) < 1e-4f, "kit repeats every octave");
+      const float kickLo  = peakWindow(36, 0, 4);
+      const float kickHi  = peakWindow(84, 0, 4);
+      const float tumbaLo = peakWindow(48, 0, 4);
+      const float tumbaHi = peakWindow(72, 0, 4);
+      CHECK(std::fabs(kickLo - kickHi) < 1e-4f, "kit repeats every 24 notes");
+      CHECK(std::fabs(tumbaLo - tumbaHi) < 1e-4f, "percussion repeats every 24 notes");
+      CHECK(std::fabs(kickLo - tumbaLo) > 1e-3f, "kit and percussion octaves differ");
    }
 
    // 3. Hi-hat choke. An open hat alone is still ringing ~0.5 s in; struck closed hat 2 blocks
@@ -131,6 +140,13 @@ int main() {
 
    std::printf("DrumKit: openAlone=%.4f openChoked=%.6f crashAlone=%.4f crashWithHat=%.4f\n",
                openAlone, openChoked, crashAlone, crashHat);
+
+   // 4b. Triangles: a muted triangle chokes a ringing open one.
+   const float triAlone  = peakWindow(58, from, to);               // A# open triangle
+   const float triChoked = peakWindow(58, from, to, 56, 2);        // + G# muted triangle
+   CHECK(triAlone > 0.01f, "open triangle still ringing at ~0.5 s");
+   CHECK(triChoked < triAlone * 0.01f, "muted triangle chokes the open triangle");
+   std::printf("Triangle: open=%.4f choked=%.6f\n", triAlone, triChoked);
 
    // 5. General MIDI map: GM notes play their drums, keys StruckKit has no model for stay silent,
    //    and the GM open/closed hats still choke each other.
@@ -152,7 +168,15 @@ int main() {
       CHECK(gmPeak(38) > 0.05f, "GM 38 (snare) sounds");
       CHECK(gmPeak(51) > 0.05f, "GM 51 (ride) sounds");
       CHECK(gmPeak(39) == 0.0f, "GM 39 (hand clap, not modelled) is silent");
-      CHECK(gmPeak(36) > 0.5f * peakWindow(48, 0, 4), "GM 36 is the StruckKit-map kick");   // C = kick
+      CHECK(std::fabs(gmPeak(36) - peakWindow(36, 0, 4)) < 1e-4f, "GM 36 is the StruckKit-map kick");
+      CHECK(std::fabs(gmPeak(64) - peakWindow(48, 0, 4)) < 1e-4f, "GM 64 (low conga) is the StruckKit-map tumba");
+      for (uint8_t n : { 56, 60, 61, 62, 63, 65, 66, 67, 68, 75, 76, 77, 80, 81 }) {
+         char msg[64];
+         std::snprintf(msg, sizeof(msg), "GM %d (percussion) sounds", n);
+         CHECK(gmPeak(n) > 0.05f, msg);
+      }
+      CHECK(gmPeak(54) == 0.0f, "GM 54 (tambourine, not modelled) is silent");
+      CHECK(gmPeak(70) == 0.0f, "GM 70 (maracas, not modelled) is silent");
       const float gmOpen   = gmPeak(46, -1, 0, from, to);
       const float gmChoked = gmPeak(46, 42, 2, from, to);
       CHECK(gmChoked < gmOpen * 0.01f, "GM closed hat (42) chokes the open hat (46)");

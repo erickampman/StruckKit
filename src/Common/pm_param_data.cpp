@@ -274,6 +274,14 @@ static const ModuleParamConstants drumKitConstants[] = {
    {"hatSize",       DrumKitParamItemHatSize,       0, 0, nullptr, 0.0f, 1.0f, 0.67f, 0},
    {"hatThin",       DrumKitParamItemHatThin,       0, 0, nullptr, 0.0f, 1.0f, 0.45f, 0},
    {"hatSizzle",     DrumKitParamItemHatSizzle,     0, 0, nullptr, 0.0f, 1.0f, 0.60f, 0},
+   // Hand drums
+   {"congaTune",     DrumKitParamItemCongaTune,     0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"bongoTune",     DrumKitParamItemBongoTune,     0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"timbaleTune",   DrumKitParamItemTimbaleTune,   0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"handRing",      DrumKitParamItemHandRing,      0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   // Percussion
+   {"percTune",      DrumKitParamItemPercTune,      0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
+   {"percDecay",     DrumKitParamItemPercDecay,     0, 0, nullptr, 0.0f, 1.0f, 0.50f, 0},
 };
 const ModuleParamConstantsGroup drumKitConstantsGroup = {
    const_cast<char*>("drumKit"), sizeof(drumKitConstants) / sizeof(drumKitConstants[0]), drumKitConstants};

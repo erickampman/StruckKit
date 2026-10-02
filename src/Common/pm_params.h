@@ -402,7 +402,7 @@ enum ModalBankMaterial : NSUInteger {
 // Only the "finalized" per-drum user controls are exposed. See DrumKitModule.cpp.
 enum DrumKitParamItem : NSUInteger {
    DrumKitParamItemLevel = 1,     // master output gain
-   DrumKitParamItemKeyMap,        // 0 = StruckKit (pitch class, repeats every octave), 1 = General MIDI
+   DrumKitParamItemKeyMap,        // 0 = StruckKit (repeats every two octaves), 1 = General MIDI
 
    // --- Crash ---
    DrumKitParamItemCrashSize,     // C# crash diameter (13" .. 22")
@@ -428,6 +428,16 @@ enum DrumKitParamItem : NSUInteger {
    DrumKitParamItemHatSize,       // diameter, 12" .. 15"
    DrumKitParamItemHatThin,       // thickness: heavy <-> thin
    DrumKitParamItemHatSizzle,     // half-open: how close the cymbals sit, i.e. how much they chatter
+
+   // --- Hand drums (congas, bongos, timbales) ---
+   DrumKitParamItemCongaTune,     // head tension: the three congas move together
+   DrumKitParamItemBongoTune,     // head tension: both bongos
+   DrumKitParamItemTimbaleTune,   // head tension: both timbales
+   DrumKitParamItemHandRing,      // head damping: muffled <-> open ring
+
+   // --- Percussion (cowbell, agogo, claves, wood blocks, triangle) ---
+   DrumKitParamItemPercTune,      // size: all of them move together, +-5 semitones
+   DrumKitParamItemPercDecay,     // ring: short <-> long
 };
 
 // Per-parameter constants (portable): the source for CLAP clap_param_info generation.
