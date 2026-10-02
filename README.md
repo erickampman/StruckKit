@@ -11,10 +11,10 @@ kit from one instance.
 from PolygraphModularUnified's `DrumKit`, the drums are physical models voiced for an authentic
 acoustic sound rather than to match PMU.
 
-**Key map** (Master panel): **PMU** — the note's pitch class picks the drum, repeating every octave —
+**Key map** (Master panel): **StruckKit** — the note's pitch class picks the drum, repeating every octave —
 or **General MIDI** note numbers.
 
-| PMU key | Drum | GM notes |
+| StruckKit key | Drum | GM notes |
 |---|---|---|
 | C / D | Kick / Kick 2 | 36 / 35 |
 | E / F | Snare / rimshot | 38, 40 / 37 |

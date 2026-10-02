@@ -402,7 +402,7 @@ enum ModalBankMaterial : NSUInteger {
 // Only the "finalized" per-drum user controls are exposed. See DrumKitModule.cpp.
 enum DrumKitParamItem : NSUInteger {
    DrumKitParamItemLevel = 1,     // master output gain
-   DrumKitParamItemKeyMap,        // 0 = PMU (pitch class, repeats every octave), 1 = General MIDI
+   DrumKitParamItemKeyMap,        // 0 = StruckKit (pitch class, repeats every octave), 1 = General MIDI
 
    // --- Crash ---
    DrumKitParamItemCrashSize,     // C# crash diameter (13" .. 22")

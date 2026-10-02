@@ -12,7 +12,7 @@ namespace struckkit {
 enum ParamIndex {
    // --- Master ---
    kParamLevel = 0,      // master output gain
-   kParamKeyMap,         // 0 = PMU (pitch class, every octave), 1 = General MIDI
+   kParamKeyMap,         // 0 = StruckKit (pitch class, every octave), 1 = General MIDI
    // --- Crash ---
    kParamCrashSize,      // C# crash diameter
    kParamCrashSize2,     // D# crash diameter

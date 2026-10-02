@@ -1,7 +1,7 @@
 //
 //  DrumKitModule.cpp — StruckKit's kit: PMU's DrumKit routing with physically modelled drums.
 //
-//  Note->drum routing (PMU's pitch-class map, or General MIDI) and the cross-voice hi-hat choke
+//  Note->drum routing (the StruckKit pitch-class map, or General MIDI) and the cross-voice hi-hat choke
 //  handshake come from PMU's DrumKitModule. The drums themselves are physical models, voiced for
 //  an authentic acoustic sound rather than to match PMU:
 //
@@ -37,14 +37,14 @@ enum DrumVoiceType : int {
     DrumRide, DrumRideBell,           // General MIDI map only
 };
 
-enum DrumKeyMap : int { DrumKeyMapPMU = 0, DrumKeyMapGM = 1 };
+enum DrumKeyMap : int { DrumKeyMapStruckKit = 0, DrumKeyMapGM = 1 };
 
 // Only the three hi-hats choke, and they all share this one group.
 static constexpr uint32_t kHatChokeGroup = 1;   // != ChokeGroupState::NoChokeGroup
 
-// PMU map: note % 12 -> drum. Octave-independent: every C is a kick, every A# a closed hat, etc.
+// StruckKit map: note % 12 -> drum. Octave-independent: every C is a kick, every A# a closed hat, etc.
 // White keys = drums, black keys = crashes (C#,D#) and hats (F#,G#,A#).
-static inline DrumVoiceType drumForNotePMU(uint8_t noteNumber) {
+static inline DrumVoiceType drumForNoteStruckKit(uint8_t noteNumber) {
     switch (noteNumber % 12) {
         case 0:  return DrumKick;        // C
         case 1:  return DrumCrash1;      // C#
@@ -94,7 +94,7 @@ static inline DrumVoiceType drumForNoteGM(uint8_t noteNumber) {
 }
 
 static inline DrumVoiceType drumForNote(uint8_t noteNumber, int keyMap) {
-    return (keyMap == DrumKeyMapGM) ? drumForNoteGM(noteNumber) : drumForNotePMU(noteNumber);
+    return (keyMap == DrumKeyMapGM) ? drumForNoteGM(noteNumber) : drumForNoteStruckKit(noteNumber);
 }
 
 // Choke group a drum belongs to. Only the hats choke; everything else rings.
@@ -197,6 +197,10 @@ struct DrumKitState {
     double   nz1 = 0.0, nz2 = 0.0;
     double   nz3 = 0.0, nz4 = 0.0;
 
+    // Toms: the head's dense upper modes, as band-split noise (see renderTom).
+    static constexpr int kResidualBands = 8;
+    double   residZ[kResidualBands][2] = {};
+
 
     // Modal body: this voice's resonator, the per-strike mode table it rings, and the strike
     // burst that excites it. The bank is NOT cleared on a re-strike of the same drum: a new hit
@@ -227,6 +231,7 @@ struct DrumKitState {
 static inline void resetVoiceDSP(DrumKitState* st) {
     st->phase = 0.0;
     st->nz1 = st->nz2 = st->nz3 = st->nz4 = 0.0;
+    for (auto& z : st->residZ) { z[0] = z[1] = 0.0; }
     st->chokeGain = 1.0f;
 }
 
@@ -318,6 +323,102 @@ static double fillHeadModes(DrumKitState* st, double rho, const Membrane::Couple
     }
     st->bodyMaterial.count = nb;
     return energy;
+}
+
+// ---- Residual: the head's modes above the table ----
+//
+// The mode table stops at ~7.5 f0 (40 modes, the bank holds 64), but a head keeps having modes all
+// the way up, and ever more of them: by Weyl's law the count below ratio r grows as r^2, here
+// (j01 r)^2 / 8 (half the full count, since a strike on one diameter drives only the cos(m theta)
+// twin of each degenerate pair; that gives the table's 40 at 7.5). Without them a drum is a cluster
+// of low sines with nothing above ~1-2 kHz, the "pong" of a lowpassed synth tom.
+//
+// Up there the modes are too dense to hear one by one, so they are rendered as what their sum
+// sounds like: noise, split into bands, each band decaying at the bank's own damping law for its
+// frequency (T60 r^-tilt) and as loud as the modes it stands for. Its level follows from the table
+// rather than by ear: a band holding dN modes, each ringing at the amplitude of the table's top
+// modes (A^2 = mean top amp^2 / table energy, as ModalBank normalises), has variance A^2 dN / 2;
+// dN per Hz is j01^2 r / (4 f0); and the strike's contact spectrum (a Hann bump, so a soft hit's
+// longer contact darkens it, as in the bank) and force scale it the same way they scale the modes.
+
+static constexpr double kResidualTopHz = 12000.0;
+static constexpr int    kResidualTopModes = 12;   // table modes averaged for the top amplitude
+// Two departures from the table's physics up here, both set by ear. Radiation: the head's waves
+// (34-72 m/s) are far slower than sound, so a high mode's many out-of-phase patches largely cancel
+// in the air; the table, all ~1 radiators, ignores this, and down there it barely matters. Damping:
+// the head's losses climb faster with frequency than the table's tilt, so a stick's bright attack is
+// gone within a few tens of milliseconds.
+static constexpr double kResidualRadiation = 0.35;  // amplitude factor
+static constexpr double kResidualDampTilt  = 1.6;   // T60 ~ r^-tilt above the table's top
+
+// Magnitude spectrum of a Hann contact of length T at frequency f, normalised to 1 at DC.
+static inline double hannContactGain(double f, double T) {
+    const double x = f * T;
+    if (x < 1e-6) return 1.0;
+    if (std::fabs(x - 1.0) < 1e-6) return 0.5;
+    return std::fabs(std::sin(M_PI * x) / (M_PI * x * (1.0 - x * x)));
+}
+
+// Plan the residual bands for this block: log-spaced from the table's top to kResidualTopHz.
+// Returns the number of bands (0 when the table already reaches the top).
+static int setupResidual(DrumKitState* st, double f0, double tableEnergy, double t60, double dampTilt,
+                         BiquadBP bp[], double gain[], double tau[]) {
+    const double sr    = st->sampleRate;
+    const double j01   = kMembraneIndex[0].j;
+    const double rTop  = kMembraneIndex[kMembraneIndexCount - 1].j / j01;
+    const double fLo   = f0 * rTop;
+    const double fHi   = std::min(kResidualTopHz, 0.45 * sr);
+    const int    nb    = st->bodyMaterial.count;
+    if (fLo * 1.1 >= fHi || tableEnergy <= 0.0 || nb < kResidualTopModes) return 0;
+
+    // m >= 1 modes only: the residual is almost all of them, and the table's m = 0 entries carry
+    // the monopole boost (their damping factor is the one that differs from 1).
+    double topAmp2 = 0.0;
+    int    topCount = 0;
+    for (int i = nb - 1; i >= 0 && topCount < kResidualTopModes; --i) {
+        if (st->bodyModes[i].damp != 1.0f) continue;
+        topAmp2 += (double)st->bodyModes[i].amp * st->bodyModes[i].amp;
+        ++topCount;
+    }
+    if (topCount == 0) return 0;
+    const double modeAmp2 = topAmp2 / topCount / tableEnergy * kResidualRadiation * kResidualRadiation;
+
+    const double contact = (double)st->strikeLen / sr;
+    const double drive   = (double)st->strikeScale * (st->strikeLen <= 1 ? 1.0 : 0.5 * (double)st->strikeLen);
+    const int    n       = DrumKitState::kResidualBands;
+    const double bwOct   = std::log2(fHi / fLo) / n;
+    const double q       = std::sqrt(std::exp2(bwOct)) / (std::exp2(bwOct) - 1.0);
+    // Uniform noise in [-1, 1) has variance 1/3; through the 0 dB-peak bandpass, about pi B / (3 sr).
+    for (int k = 0; k < n; ++k) {
+        const double fc  = fLo * std::exp2(bwOct * (k + 0.5));
+        const double bw  = fc / q;
+        const double r   = fc / f0;
+        const double dN  = j01 * j01 * r * bw / (4.0 * f0);
+        const double var = modeAmp2 * dN * 0.5;
+        // The contact spectrum, averaged across the band (it has nulls a single point could hit).
+        double h = 0.0;
+        for (int p = 0; p < 5; ++p) h += hannContactGain(fc * std::exp2(bwOct * (p - 2) / 4.0), contact);
+        bp[k]   = makeBandpass(fc, q, sr);
+        gain[k] = std::sqrt(var / (M_PI * bw / (3.0 * sr))) * (h / 5.0) * drive;
+        // The table's tilt law up to its top, steeper beyond it.
+        tau[k]  = t60 * std::pow(rTop, -dampTilt) * std::pow(r / rTop, -kResidualDampTilt) / kLn1000;
+    }
+    return n;
+}
+
+// One sample of the residual at time t after the strike, rising over the contact like the force.
+static inline double renderResidual(DrumKitState* st, int n, const BiquadBP bp[], const double gain[],
+                                    const double tau[], double t, double contactSec) {
+    if (n == 0) return 0.0;
+    const double x    = (double)lcgBipolar(st->rng);
+    const double rise = (contactSec > 0.0) ? std::min(1.0, t / contactSec) : 1.0;
+    double y = 0.0;
+    for (int k = 0; k < n; ++k) {
+        const double env = std::exp(-t / tau[k]);
+        if (env < 1e-5) continue;   // bands are ordered by frequency, but tau need not be monotone
+        y += biquadTick(bp[k], x, st->residZ[k][0], st->residZ[k][1]) * gain[k] * env;
+    }
+    return y * rise;
 }
 
 // ---- Snare ----
@@ -509,7 +610,7 @@ static constexpr double kTomResoSustain   = 3.0;    // resonant head's T60 relat
 static constexpr double kTomAxisymDamp    = 0.6;
 static constexpr float  kTomDampTilt      = 0.6f;
 static constexpr double kTomBend          = 0.07;   // fractional pitch rise of a full stroke (set by ear)
-static constexpr double kTomBodyLevel     = 0.55;
+static constexpr double kTomBodyLevel     = 0.42;
 static constexpr double kTomTickTau       = 0.0005;
 static constexpr double kTomTickLevel     = 0.06;
 
@@ -537,7 +638,7 @@ static void renderTom(DrumKitState* st, Module* module, float level,
         // Loss rates add: 1 / T60 = share_b / T60_b + share_r / (kTomResoSustain T60_b).
         resoSustain[i] = 1.0 / (shareBatter + shareReso / kTomResoSustain);
     }
-    fillHeadModes(st, rho, pair, resoSustain, kTomMonopoleGain, kTomAxisymDamp);
+    const double bodyEnergy = fillHeadModes(st, rho, pair, resoSustain, kTomMonopoleGain, kTomAxisymDamp);
     st->bank.setMaterial(st->bodyMaterial);
     st->bank.invalidate();                      // table contents change under a stable pointer
     st->bank.setModeCount(st->bodyMaterial.count);
@@ -552,6 +653,14 @@ static void renderTom(DrumKitState* st, Module* module, float level,
 
     const float    bodyGain = (float)(kTomBodyLevel * kOutScale) * level * kModalPanComp;
     const BiquadBP tickBP   = makeBandpass(4000.0, 0.7, sr);
+
+    // Upper modes, above the table (see Residual above).
+    BiquadBP residBP[DrumKitState::kResidualBands];
+    double   residGain[DrumKitState::kResidualBands], residTau[DrumKitState::kResidualBands];
+    const int nr = setupResidual(st, f0, bodyEnergy, t60, (double)kTomDampTilt, residBP, residGain, residTau);
+    const double residScale = kTomBodyLevel * kOutScale * (double)level;
+    const double contactSec = (double)st->strikeLen / sr;
+
     float ex[kModalSubBlock], bL[kModalSubBlock], bR[kModalSubBlock];
     double t = (double)st->agePos / sr;
 
@@ -570,13 +679,15 @@ static void renderTom(DrumKitState* st, Module* module, float level,
                 tick = biquadTick(tickBP, lcgBipolar(st->rng), st->nz1, st->nz2)
                      * std::exp(-t / kTomTickTau) * kTomTickLevel * st->velAmp;
             }
-            const float hit = (float)(tick * level * kOutScale);
+            const float hit = (float)(tick * level * kOutScale
+                                      + renderResidual(st, nr, residBP, residGain, residTau, t, contactSec) * residScale);
             outL[base + i] = bL[i] * bodyGain + hit;
             outR[base + i] = bR[i] * bodyGain + hit;
             st->agePos++;
         }
     }
 
+    // The residual's slowest band lives far shorter than the (0,1) pair, so the bank decides.
     if (st->strikePos < 0 && t > 0.1 && st->bank.isSilent(kModalSilence)) { st->playing = false; }
 }
 

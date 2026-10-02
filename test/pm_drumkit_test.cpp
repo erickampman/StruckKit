@@ -152,7 +152,7 @@ int main() {
       CHECK(gmPeak(38) > 0.05f, "GM 38 (snare) sounds");
       CHECK(gmPeak(51) > 0.05f, "GM 51 (ride) sounds");
       CHECK(gmPeak(39) == 0.0f, "GM 39 (hand clap, not modelled) is silent");
-      CHECK(gmPeak(36) > 0.5f * peakWindow(48, 0, 4), "GM 36 is the PMU kick");   // C = kick
+      CHECK(gmPeak(36) > 0.5f * peakWindow(48, 0, 4), "GM 36 is the StruckKit-map kick");   // C = kick
       const float gmOpen   = gmPeak(46, -1, 0, from, to);
       const float gmChoked = gmPeak(46, 42, 2, from, to);
       CHECK(gmChoked < gmOpen * 0.01f, "GM closed hat (42) chokes the open hat (46)");

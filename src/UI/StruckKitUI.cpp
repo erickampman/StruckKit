@@ -1,7 +1,7 @@
 // StruckKitUI.cpp — the drum-kit front end. A KitMap legend (which key plays which drum, for the
 // selected key map) plus five grouped panels of reusable Knob controls, one per drum family
 // (Crash / Snare / Toms / Hats) and Master. Each panel's title names the drum, so knobs are
-// captioned by just their control. Master also carries the key-map dropdown (PMU / GM).
+// captioned by just their control. Master also carries the key-map dropdown (StruckKit / GM).
 
 #include "DistrhoUI.hpp"
 
@@ -45,7 +45,7 @@ static inline Color colToms()   { return Color(120, 190, 140); }
 static inline Color colHats()   { return Color(168, 140, 214); }
 
 // --------------------------------------------------------------------------------------------
-// KitMap — which key plays which drum (DrumKitModule.cpp's drumForNote). For the PMU map, one
+// KitMap — which key plays which drum (DrumKitModule.cpp's drumForNote). For the StruckKit map, one
 // octave of keyboard, since that map repeats every octave; for General MIDI, the note numbers by
 // drum. Keys and names are tinted by drum family to match the panels.
 class KitMap : public NanoSubWidget
@@ -187,7 +187,7 @@ private:
     }
 
     bool fHasFont = false;
-    int  fKeyMap  = 0;   // 0 = PMU, 1 = GM
+    int  fKeyMap  = 0;   // 0 = StruckKit, 1 = GM
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitMap)
 };
@@ -230,7 +230,7 @@ public:
                 auto d = std::make_unique<Dropdown>(g, this);
                 d->setId(i);
                 d->setLabel("Map");
-                d->setChoices({ "PMU", "GM" });
+                d->setChoices({ "StruckKit", "GM" });
                 d->setIndex(static_cast<int>(s.def));
                 g->addControl(d.get());
                 fMapDropdown = std::move(d);
@@ -513,7 +513,7 @@ private:
     std::unique_ptr<PopupMenu>     fMenu;
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
-    std::unique_ptr<Dropdown>      fMapDropdown;    // key map: PMU / GM
+    std::unique_ptr<Dropdown>      fMapDropdown;    // key map: StruckKit / GM
     float                          fValues[kParamCount];
     bool                           fHasFont = false;
     bool                           fInitialSizeNudged = false;

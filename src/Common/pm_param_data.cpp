@@ -252,7 +252,7 @@ const ModuleParamConstantsGroup modalBankConstantsGroup = {
 // DrumKit — master level + per-drum "finalized" user knobs (0..1). Defaults carried over from PMU.
 static const ModuleParamConstants drumKitConstants[] = {
    {"level",         DrumKitParamItemLevel,         0, 0, nullptr, 0.0f, 2.0f, 1.0f,  0},
-   {"keyMap",        DrumKitParamItemKeyMap,        0, 0, nullptr, 0.0f, 1.0f, 0.0f,  0},   // 0 PMU, 1 GM
+   {"keyMap",        DrumKitParamItemKeyMap,        0, 0, nullptr, 0.0f, 1.0f, 0.0f,  0},   // 0 StruckKit, 1 GM
    // Crash
    {"crashSize",     DrumKitParamItemCrashSize,     0, 0, nullptr, 0.0f, 1.0f, 0.778f, 0},  // 20"
    {"crashSize2",    DrumKitParamItemCrashSize2,    0, 0, nullptr, 0.0f, 1.0f, 0.111f, 0},  // 14"
