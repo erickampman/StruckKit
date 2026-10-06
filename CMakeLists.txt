@@ -10,6 +10,44 @@ if(STRUCKKIT_MACOS_UNIVERSAL)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
 endif()
 
+# --- macOS: the make that recursive rules use must not live under a path with a space ---
+# CMake's Unix Makefiles generator drives recursive make through $(MAKE), and GNU Make 3.81
+# splits that on whitespace before it execs it. /usr/bin/make is only a shim: it re-execs the make
+# inside the selected developer directory, and the real make then reports *that* path as $(MAKE).
+# So an Xcode installed under a name containing a space — e.g. "/Applications/Xcode 26.3.app" —
+# breaks every recursive rule CMake emits, starting with the compiler check inside project(),
+# which dies with `make: /Applications/Xcode: No such file or directory` before any of our code is
+# even looked at. Pick a make whose own path is space-free instead. (The other way out is to point
+# the active developer directory at a space-free install: `sudo xcode-select -s /Applications/Xcode.app`.)
+# This must run before project(). An explicit -DCMAKE_MAKE_PROGRAM=... is always left alone.
+if(APPLE AND (NOT CMAKE_MAKE_PROGRAM OR CMAKE_MAKE_PROGRAM STREQUAL "/usr/bin/make"))
+    execute_process(COMMAND /usr/bin/xcrun --find make
+        OUTPUT_VARIABLE _struckkit_active_make OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET RESULT_VARIABLE _struckkit_xcrun_result)
+    if(_struckkit_xcrun_result EQUAL 0 AND _struckkit_active_make MATCHES " ")
+        set(_struckkit_make_replaced FALSE)
+        foreach(_struckkit_make_candidate
+                "/Library/Developer/CommandLineTools/usr/bin/make"
+                "/Applications/Xcode.app/Contents/Developer/usr/bin/make")
+            if(EXISTS "${_struckkit_make_candidate}")
+                set(CMAKE_MAKE_PROGRAM "${_struckkit_make_candidate}" CACHE FILEPATH
+                    "Program used to build from makefiles" FORCE)
+                message(STATUS "macOS: '${_struckkit_active_make}' contains a space, which GNU Make "
+                               "cannot recurse through; using '${_struckkit_make_candidate}' instead")
+                set(_struckkit_make_replaced TRUE)
+                break()
+            endif()
+        endforeach()
+        if(NOT _struckkit_make_replaced)
+            message(WARNING
+                "macOS: the active developer directory's make ('${_struckkit_active_make}') contains "
+                "a space, which GNU Make cannot recurse through, and no space-free make was found. "
+                "The build will fail; select a developer directory without spaces, e.g. "
+                "`sudo xcode-select -s /Applications/Xcode.app`.")
+        endif()
+    endif()
+endif()
+
 # C is needed for DPF's pugl / dgl sources (Objective-C++ on macOS, which CMake enables itself).
 project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
 
@@ -122,6 +160,29 @@ set_target_properties(StruckKit-dsp StruckKit-ui PROPERTIES
 # Dev-only JSON patch dumper (keystroke → file); compiled out of release builds.
 if(STRUCKKIT_PRESET_DUMP)
     target_compile_definitions(StruckKit-ui PRIVATE STRUCKKIT_PRESET_DUMP=1)
+endif()
+
+# --- macOS: ad-hoc sign the .clap bundle ----------------------------------
+# ld ad-hoc signs the Mach-O it writes, but only usefully for a thin output: for the universal
+# (arm64 + x86_64) binary that STRUCKKIT_MACOS_UNIVERSAL produces, `codesign --verify` rejects the
+# linker's signature with "code object is not signed at all" — so the bundle fails the signature
+# check even though it still loads. Signing the bundle explicitly yields a signature codesign
+# accepts (and one that seals Info.plist, which the linker's does not). Still ad-hoc: fine for a
+# local build and for loading here; handing the plugin to other people needs a Developer ID
+# signature plus notarization, which is not set up. Must run before the symlink below so the link
+# never points at an unsigned bundle.
+if(APPLE)
+    find_program(STRUCKKIT_CODESIGN_EXECUTABLE codesign)
+    if(STRUCKKIT_CODESIGN_EXECUTABLE)
+        add_custom_command(TARGET StruckKit-clap POST_BUILD
+            COMMAND "${STRUCKKIT_CODESIGN_EXECUTABLE}" --force --sign - --timestamp=none
+                "${CMAKE_BINARY_DIR}/bin/StruckKit.clap"
+            COMMENT "Ad-hoc signing StruckKit.clap"
+            VERBATIM)
+    else()
+        message(WARNING "codesign not found: StruckKit.clap stays linker-signed, which a "
+                        "universal build's signature check rejects")
+    endif()
 endif()
 
 # --- install: symlink the built .clap into the user CLAP dir ---------------
