@@ -104,13 +104,17 @@ wrapper links the `pm_framework` static lib; DPF owns the plugin/UI lifecycle.
 
 ## Build
 
-DPF's OpenGL/NanoVG UI needs the usual X11 + GL dev packages (Linux):
+**Linux:** DPF's OpenGL/NanoVG UI needs the usual X11 + GL dev packages:
 
 ```sh
 sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev
 ```
 
-Then:
+**macOS:** the Xcode Command Line Tools (`xcode-select --install`; clang, the SDK's Cocoa and
+OpenGL frameworks, and Python 3) plus CMake ≥ 3.17 (`brew install cmake`). Nothing else: the UI uses
+the system frameworks.
+
+Then, on either:
 
 ```sh
 git clone --recurse-submodules https://github.com/erickampman/StruckKit.git
@@ -126,6 +130,12 @@ details in [TESTING.md](TESTING.md).
 
 Configure options: `-DSTRUCKKIT_WERROR=ON` (warnings as errors), `-DSTRUCKKIT_PRESET_DUMP=ON`
 (dev-only DUMP button that writes the current patch as JSON to `$HOME`).
+
+macOS options: the build targets macOS 15.0 and later (`-DCMAKE_OSX_DEPLOYMENT_TARGET=...` to
+change it) and, by default, only the machine's own architecture. `-DSTRUCKKIT_MACOS_UNIVERSAL=ON`
+builds one universal bundle for Apple Silicon and Intel; switching it on an existing build directory
+needs a fresh one (`rm -rf build`). The linker ad-hoc signs the bundle, which is all a local build
+needs; giving it to other people needs a Developer ID signature and notarization (not set up here).
 
 ## License
 

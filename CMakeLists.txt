@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.17)
 
-# C is needed for DPF's pugl / dgl sources.
+# --- macOS: target OS and architectures (must be set before project()) ------
+# Without a deployment target the binary targets whatever macOS it was built on and may refuse to
+# load on older systems. StruckKit supports macOS 15 and later. Both are cache vars, so -D
+# overrides them.
+set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version")
+option(STRUCKKIT_MACOS_UNIVERSAL "macOS: build one universal binary (arm64 + x86_64)" OFF)
+if(STRUCKKIT_MACOS_UNIVERSAL)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
+endif()
+
+# C is needed for DPF's pugl / dgl sources (Objective-C++ on macOS, which CMake enables itself).
 project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)          # PM framework uses std::numbers / std::span

@@ -35,8 +35,20 @@ jobs:
           sudo apt-get install -y pkg-config libgl1-mesa-dev libx11-dev \
             libxext-dev libxrandr-dev libxcursor-dev
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_WERROR=ON
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_WERROR=ON ${{ runner.os == 'macOS' && '-DSTRUCKKIT_MACOS_UNIVERSAL=ON' || '' }}
       - name: Build
         run: cmake --build build -j
+      - name: Check the macOS bundle (both architectures, macOS 15 minimum)
+        if: runner.os == 'macOS'
+        run: |
+          bin=build/bin/StruckKit.clap/Contents/MacOS/StruckKit
+          lipo -archs "$bin"
+          lipo "$bin" -verify_arch arm64 x86_64
+          for a in arm64 x86_64; do
+            minos=$(vtool -arch "$a" -show-build "$bin" | awk '/minos/ {print $2}')
+            echo "$a minos $minos"
+            test "$minos" = "15.0"
+          done
+          codesign --verify --verbose "build/bin/StruckKit.clap" || codesign --verify --verbose "$bin"
       - name: Test (framework self-tests via ctest)
         run: ctest --test-dir build --output-on-failure --timeout 30

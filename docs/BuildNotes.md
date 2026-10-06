@@ -11,6 +11,12 @@ CLEAN
 cmake --build build -j --clean-first
 
 
+macOS (universal: Apple Silicon + Intel; drop the option for a native-only build)
+
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_MACOS_UNIVERSAL=ON
+cmake --build build -j
+(symlinks into ~/Library/Audio/Plug-Ins/CLAP; check with: lipo -archs build/bin/StruckKit.clap/Contents/MacOS/StruckKit)
+
 Config Dump build:
 
     cd ~/dev/dev-clap/StruckKit
