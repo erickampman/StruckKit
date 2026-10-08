@@ -6,7 +6,7 @@ validator. Everything runs headless on Linux/macOS — no DAW or audio device re
 ## Prerequisites
 
 - CMake ≥ 3.17 and a C++20 compiler (gcc or clang).
-- Submodules (CLAP headers for the tests; DPF + pugl for the plugin build):
+- Submodules (uw-core's UMP layer; DPF + pugl for the plugin build):
 
   ```sh
   git submodule update --init --recursive

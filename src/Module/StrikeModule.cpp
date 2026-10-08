@@ -96,7 +96,7 @@ void MIDIStrikeModule(const pm::UmpMessage& message, Module* module)
 {
     auto* st = static_cast<StrikeState*>(module->state);
     if (!st) return;
-    if (message.status == pm::kStatusNoteOn && message.velocity > 0) {
+    if (message.status == pm::ump::Status::NoteOn && message.velocity > 0) {
         st->pendingVel     = (float)message.velocity / 65535.0f;   // MIDI 2.0 16-bit
         st->pendingNote    = (float)message.note;                  // sizes note-relative contact
         st->pendingTrigger = true;

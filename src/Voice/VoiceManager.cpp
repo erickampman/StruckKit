@@ -83,7 +83,7 @@ void VoiceManager::handleMIDIMessage(const pm::UmpMessage& message) {
         LOG_VM("VoiceManager::handleMIDIMessage %s ", descStr.c_str());
     }
     
-    if (pm::isChannelMessage(message)) {
+    if (pm::isChannelVoice2(message)) {
         uint32_t channel = uint32_t(voiceManagerParamByEnum(MIDIParamItemChannelFilterValue));
         if (channel) {
             channel -= 1;
@@ -101,15 +101,15 @@ void VoiceManager::handleMIDIMessage(const pm::UmpMessage& message) {
         }
     }
     
-	if (message.messageType == pm::kUmpTypeChannelVoice2) {
+	if (pm::isChannelVoice2(message)) {
 		switch (message.status) {
-		case pm::kStatusNoteOn:
+		case pm::ump::Status::NoteOn:
 			noteOn(message);
             return;
-        case pm::kStatusNoteOff:
+        case pm::ump::Status::NoteOff:
             noteOff(message);
             return;
-        case pm::kStatusControlChange:
+        case pm::ump::Status::ControlChange:
             // Intercept CC 64 (sustain pedal) for voice-lifecycle management.
             // Fall through so CCConverter modules also receive it.
             if (message.ccIndex == 64) {

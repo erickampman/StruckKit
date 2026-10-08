@@ -27,7 +27,7 @@ void MIDICVMixerModule(const pm::UmpMessage& message, Module* module)
 {
     auto* st = static_cast<CVMixerState*>(module->state);
     if (!st) return;
-    if (message.messageType == pm::kUmpTypeChannelVoice2 && message.status == pm::kStatusControlChange) {
+    if (pm::isChannelVoice2(message) && message.status == pm::ump::Status::ControlChange) {
         const int ccNum = static_cast<int>(module->paramByEnum(CVMixerParamItemCCNumber));
         if (static_cast<int>(message.ccIndex) == ccNum)
             st->ccValue = static_cast<float>(message.ccData) / 4294967296.0f; // 32-bit → 0..1

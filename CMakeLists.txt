@@ -57,10 +57,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(STRUCKKIT_WERROR "Treat warnings as errors (framework + tests)" OFF)
 option(STRUCKKIT_PRESET_DUMP "Dev-only: press 'P' in the UI to dump the patch as JSON to \$HOME" OFF)
 
+# --- uw-core (git submodule): the UMP layer StruckKit shares with StageHand, Umpire and the
+# other plugins. Only uw::ump (no CLAP host, JACK or ALSA); namespace uw (pm_midi.h). It builds
+# position-independent with hidden symbols, so it links into the .clap safely.
+set(UW_CORE_UMP_ONLY ON CACHE BOOL "" FORCE)
+set(UW_CORE_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/uw-core)
+
 # --- PM framework port -----------------------------------------------------
-# Vendored PolygraphModular framework + our shim/MIDI layer, as a static lib. Compiled with
-# relaxed warnings (vendored code, its own style); our glue and tests stay strict. PIC so it
-# can be linked into the shared .clap module.
+# Vendored PolygraphModular framework + our shim/MIDI layer (over uw::ump), as a static lib.
+# Compiled with relaxed warnings (vendored code, its own style); our glue and tests stay strict.
+# PIC so it can be linked into the shared .clap module.
 add_library(pm_framework STATIC
     src/Common/pm_midi.cpp
     src/Common/pm_param_data.cpp
@@ -94,6 +101,7 @@ set_target_properties(pm_framework PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # All framework folders on the include path so the vendored `#include "X.hpp"` resolve
 # across Module/ Voice/ Common/ (mirrors PolygraphModular's layout).
 target_include_directories(pm_framework PUBLIC src/Common src/Module src/Voice)
+target_link_libraries(pm_framework PUBLIC uw::ump)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     target_compile_options(pm_framework PRIVATE -Wall -Wno-unknown-pragmas -Wno-unused-parameter)
 endif()
@@ -205,7 +213,6 @@ add_custom_command(TARGET StruckKit-clap POST_BUILD
 # --- self-tests (the framework; headless, no DAW) --------------------------
 add_executable(pm-selftest test/pm_selftest.cpp)
 target_link_libraries(pm-selftest PRIVATE pm_framework)
-target_include_directories(pm-selftest PRIVATE external/clap/include) # clap_ump.h decoders
 
 add_executable(pm-module-test test/pm_module_test.cpp)
 target_link_libraries(pm-module-test PRIVATE pm_framework)

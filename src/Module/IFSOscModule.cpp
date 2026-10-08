@@ -163,9 +163,9 @@ void MIDIIFSOscModule(const pm::UmpMessage& message, Module* module)
     // If pitch is driven by a connected input, note messages don't set frequency.
     if (module->isInputConnected(IFSOscParamItemPitchInput)) return;
 
-    if (message.status == pm::kStatusNoteOn && message.velocity > 0) {
+    if (message.status == pm::ump::Status::NoteOn && message.velocity > 0) {
         double freq = 0.0;
-        if (message.attributeType == pm::kAttrPitch7_9) {
+        if (message.attributeType == pm::ump::NoteAttribute::Pitch7_9) {
             uint16_t attr     = message.attribute;
             uint8_t  note     = (attr & 0xFE00) >> 9;
             uint16_t fraction = attr & 0x01FF;

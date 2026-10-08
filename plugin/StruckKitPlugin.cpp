@@ -2,7 +2,7 @@
 // voice engine. DPF hands us MIDI 1.0 events + a parameter interface and generates the CLAP
 // (VST3/LV2) wrapper; all the synthesis is the same VoiceManager the self-tests exercise.
 //
-//   MIDI events  → pm::UmpMessage → VoiceManager (polyphony / stealing / mono)
+//   MIDI events  → uw::ump (MIDI 1.0 → 2.0) → pm::UmpMessage → VoiceManager (polyphony / stealing / mono)
 //   params       → VoiceManager::setParameter() (propagates to every voice, live)
 //   run()        → chunked VoiceManager::process()
 //
@@ -115,6 +115,7 @@ protected:
 
 private:
     std::unique_ptr<VoiceManager> fVoiceManager;
+    pm::Midi1Decoder              fMidi1; // DPF delivers MIDI 1.0 bytes; uw::ump parses and upconverts them
     float                         fValues[kParamCount];
 
     // Map a DPF param index onto its DrumKit module item address.
@@ -178,11 +179,8 @@ private:
     void dispatchMidi(const MidiEvent& me)
     {
         const uint8_t* d = me.size > MidiEvent::kDataSize ? me.dataExt : me.data;
-        const pm::UmpMessage m = pm::fromMidi1Bytes(d[0],
-                                                    me.size > 1 ? d[1] : 0,
-                                                    me.size > 2 ? d[2] : 0);
-        if (pm::isChannelMessage(m))
-            fVoiceManager->handleMIDIMessage(m);
+        fMidi1.feed(d, me.size,
+                    [this](const pm::UmpMessage& m) { fVoiceManager->handleMIDIMessage(m); });
     }
 
     // Render [start,end) by chunking to the module block size; VoiceManager zeroes + sums voices.

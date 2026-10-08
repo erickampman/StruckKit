@@ -77,8 +77,8 @@ src/UI/               the plugin GUI (reusable NanoVG widgets + the panel)
                         Logo; PresetKeys / PresetDump (preset menu + dev-only JSON dumper);
                         StruckKitUI.cpp — the kit map + one knob panel per drum family
 src/Common/           shim + MIDI + params + utilities
-                        pm_compat.h (Apple→portable), pm_midi.* (spec UMP + MIDI-1 decode),
-                        clap_ump.h (CLAP↔UMP), pm_params.h / pm_param_data.* / pm_addresses.h,
+                        pm_compat.h (Apple→portable), pm_midi.* (decoded UMP over uw::ump +
+                        MIDI-1 decode), pm_params.h / pm_param_data.* / pm_addresses.h,
                         ParamAddressMacros.h, CPPTypes.hpp, CPPProcs.hpp, KPBuffPairHelper.hpp
 src/Module/           Module core + modules
                         DrumKitModule.* (the kit) + ChokeGroupState / ModuleSharedState
@@ -95,7 +95,8 @@ Presets/              factory presets (JSON), compiled into GeneratedPresets.h b
 Resources/            font + logo, embedded into the binary at build time
 test/                 in-process self-tests (see TESTING.md)
 dpf/                  DISTRHO Plugin Framework (submodule, + nested pugl) — generates the .clap
-external/clap         CLAP headers (submodule, pinned 1.2.9) — used by the framework self-tests
+external/uw-core      uw-core (private submodule): uw::ump, the UMP layer shared with StageHand,
+                        Umpire and the other plugins; built UMP-only (UW_CORE_UMP_ONLY)
 ```
 
 Vendored PolygraphModular files keep their original `#include "X.hpp"` form; every framework
@@ -122,6 +123,11 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build --output-on-failure     # see TESTING.md for the full suite
 ```
+
+uw-core is a private repo: cloning needs access to `erickampman/uw-core`, and CI needs the
+`SUBMODULES_TOKEN` secret (as StageHand's). A change StruckKit needs from uw-core is pushed there
+first, then the pin (`external/uw-core`) is moved here; `git config push.recurseSubmodules check`
+makes git refuse a pin uw-core's remote doesn't have yet.
 
 Produces `build/bin/StruckKit.clap`. A post-build step symlinks it into `~/.clap` (Linux) or
 `~/Library/Audio/Plug-Ins/CLAP/` (macOS), so any CLAP host picks up the freshest build after a

@@ -42,28 +42,28 @@ void MIDIPitchConverter(const pm::UmpMessage& message, Module* module)
     auto* state = static_cast<PitchConverterHelperStruct*>(module->state);
 
     switch (message.status) {
-        case pm::kStatusNoteOn:
+        case pm::ump::Status::NoteOn:
         {
             uint8_t noteNum = message.note;
-            uint8_t attributeType = message.attributeType;
+            const auto attributeType = message.attributeType;
             uint16_t attribute = message.attribute;
 
             switch (attributeType) {
-                case pm::kAttrNone:
+                case pm::ump::NoteAttribute::None:
                     state->curValue = module->pitchConverter->midiToPitch(noteNum);
                     break;
-                case pm::kAttrPitch7_9:
+                case pm::ump::NoteAttribute::Pitch7_9:
                     // needs testing!!!
                     state->curValue = module->pitchConverter->Pitch79ToOctaveOffset(attribute);
                     break;
                 // not handled
-                case pm::kAttrManuf:
-                case pm::kAttrProfile:
+                case pm::ump::NoteAttribute::ManufacturerSpecific:
+                case pm::ump::NoteAttribute::ProfileSpecific:
                     break;
             }
         }
             break;
-        case pm::kStatusNoteOff:
+        case pm::ump::Status::NoteOff:
         default:
             break;
 
