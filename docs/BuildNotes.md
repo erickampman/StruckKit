@@ -1,3 +1,5 @@
+(Linux notes. On macOS, see MACOS.md.)
+
 CONFIGURE
 
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
