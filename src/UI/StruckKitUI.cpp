@@ -71,9 +71,9 @@ protected:
         const float w = getWidth(), h = getHeight();
         const float s = std::max(0.5f, h / 170.0f); // text scale, tracks the cell height
 
-        beginPath(); roundedRect(0, 0, w, h, 6); fillColor(Color(28, 31, 37)); fill();
+        beginPath(); roundedRect(0, 0, w, h, 6); fillColor(Color(46, 24, 29)); fill();
         beginPath(); roundedRect(0.5f, 0.5f, w - 1, h - 1, 6);
-        strokeColor(Color(58, 62, 70)); strokeWidth(1.0f); stroke();
+        strokeColor(Color(84, 50, 58)); strokeWidth(1.0f); stroke();
 
         if (fKeyMap == 1) { drawGM(w, h, s); return; }
 
@@ -387,7 +387,7 @@ protected:
     void onNanoDisplay() override
     {
         const float w = getWidth(), h = getHeight();
-        beginPath(); rect(0, 0, w, h); fillColor(Color(22, 24, 29)); fill();
+        beginPath(); rect(0, 0, w, h); fillColor(Color(32, 16, 20)); fill();
 
         // Title, just to the right of the brand logo (fTitleX set in layout()).
         if (fHasFont)
