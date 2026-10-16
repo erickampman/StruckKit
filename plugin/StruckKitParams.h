@@ -42,6 +42,8 @@ enum ParamIndex {
    // --- Percussion (cowbell, agogo, claves, wood blocks, triangle) ---
    kParamPercTune,       // size, all together (+-5 semitones)
    kParamPercDecay,      // short <-> long ring
+   // --- Master (appended: the CLAP param id is the index) ---
+   kParamVoices,         // polyphony: index into kVoiceCounts (10 / 16 / 20 / 32)
    kParamCount
 };
 
@@ -89,10 +91,24 @@ static constexpr ParamSpec kParams[kParamCount] = {
    // Percussion
    {"Perc Tune",      "percTune",      "", 0.0f, 1.0f, 0.50f,  false, false},
    {"Perc Decay",     "percDecay",     "", 0.0f, 1.0f, 0.50f,  false, false},
+   // Master (appended)
+   {"Voices",         "voices",        "", 0.0f, 3.0f, 1.0f,   false, true },
 };
 
-// Fixed polyphony: enough for rolls under ringing crashes; the oldest voice is stolen beyond it.
-static constexpr float kVoiceCount = 16.0f;
+// Polyphony choices for kParamVoices; the oldest voice is stolen beyond the count. 16 (the default)
+// is enough for rolls under ringing crashes. The engine allocates all MAX_VOICES (32) voices when the
+// VoiceManager is built, so changing this never allocates.
+static constexpr float       kVoiceCounts[]      = { 10.0f, 16.0f, 20.0f, 32.0f };
+static constexpr const char* kVoiceChoiceNames[] = { "10", "16", "20", "32" };
+static constexpr int         kVoiceChoiceCount   = 4;
+
+inline float voiceCountFor(float choice)
+{
+   int i = static_cast<int>(choice + 0.5f);
+   if (i < 0) i = 0;
+   if (i >= kVoiceChoiceCount) i = kVoiceChoiceCount - 1;
+   return kVoiceCounts[i];
+}
 
 } // namespace struckkit
 

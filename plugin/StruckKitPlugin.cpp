@@ -136,8 +136,9 @@ private:
             DrumKitParamItemCongaTune,     DrumKitParamItemBongoTune,
             DrumKitParamItemTimbaleTune,   DrumKitParamItemHandRing,
             DrumKitParamItemPercTune,      DrumKitParamItemPercDecay,
+            DrumKitParamItem(0),           // Voices: a VoiceManager setting, see applyParam
         };
-        if (paramIndex >= kParamCount)
+        if (paramIndex >= kParamCount || paramIndex == kParamVoices)
             return 0;
         return MODULE_PARAM_ADDRESS(ModuleParamKindDrumKit, ModuleInstance1, kItems[paramIndex]);
     }
@@ -146,6 +147,11 @@ private:
     {
         if (!fVoiceManager)
             return;
+        if (index == kParamVoices)
+        {
+            setConfig(MIDIParamItemVoiceCount, voiceCountFor(value));
+            return;
+        }
         const AUParameterAddress a = vmAddress(index);
         if (a != 0)
             fVoiceManager->setParameter(a, value);
@@ -156,9 +162,9 @@ private:
     {
         fVoiceManager = std::make_unique<VoiceManager>(getSampleRate(), MODULE_BUFF_SIZE);
 
-        // VoiceManager params aren't zero-initialised. A kit is always polyphonic with a fixed
-        // voice count; no legato (every hit is a fresh strike).
-        setConfig(MIDIParamItemVoiceCount, kVoiceCount);
+        // VoiceManager params aren't zero-initialised. A kit is always polyphonic (the Voices
+        // param sets the count, pushed with the rest below); no legato (every hit is a fresh strike).
+        setConfig(MIDIParamItemVoiceCount, voiceCountFor(fValues[kParamVoices]));
         setConfig(MIDIParamItemLegato, 0);
         setConfig(MIDIParamItemChannelFilterValue, 0);
         setConfig(MIDIParamItemGroupFilterValue, 0);

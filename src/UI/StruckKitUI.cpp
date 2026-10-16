@@ -1,7 +1,8 @@
 // StruckKitUI.cpp — the drum-kit front end. A KitMap legend (which key plays which drum, for the
 // selected key map) plus seven grouped panels of reusable Knob controls, one per drum family
 // (Crash / Snare / Toms / Hats / Hand Drums / Percussion) and Master. Each panel's title names the drum, so knobs are
-// captioned by just their control. Master also carries the key-map dropdown (StruckKit / GM).
+// captioned by just their control. Master also carries the key-map dropdown (StruckKit / GM) and
+// the Voices dropdown (10 / 16 / 20 / 32).
 
 #include "DistrhoUI.hpp"
 
@@ -283,6 +284,17 @@ public:
                 fMapDropdown = std::move(d);
                 continue;
             }
+            if (i == kParamVoices)
+            {
+                auto d = std::make_unique<Dropdown>(g, this);
+                d->setId(i);
+                d->setLabel("Voices");
+                d->setChoices(std::vector<std::string>(kVoiceChoiceNames, kVoiceChoiceNames + kVoiceChoiceCount));
+                d->setIndex(static_cast<int>(s.def));
+                g->addControl(d.get());
+                fVoicesDropdown = std::move(d);
+                continue;
+            }
             auto k = std::make_unique<Knob>(g, this);
             k->setId(i);
             k->setLabel(shortLabel(i));
@@ -325,6 +337,8 @@ protected:
             if (fMapDropdown) fMapDropdown->setIndex(map);
             if (fKitMap)      fKitMap->setKeyMap(map);
         }
+        if (index == kParamVoices && fVoicesDropdown)
+            fVoicesDropdown->setIndex(static_cast<int>(value + 0.5f));
     }
 
     /* -- knob -> host ----------------------------------------------------- */
@@ -349,7 +363,7 @@ protected:
     {
         const uint32_t id = menu->tag();
         if (id == kPresetDropdownId) { applyPreset(index); return; }
-        if (id != kParamKeyMap) return;
+        if (id != kParamKeyMap && id != kParamVoices) return;
         const float v = static_cast<float>(index);
         editParameter(id, true);
         setParameterValue(id, v);
@@ -488,10 +502,26 @@ private:
         for (uint32_t i = 0; i < kParamCount; ++i)
             if (fKnobs[i]) fKnobs[i]->setDiameter(knobD, s);
         if (fMapDropdown) fMapDropdown->setUiScale(s);
+        if (fVoicesDropdown) fVoicesDropdown->setUiScale(s);
         GroupBox* panels[7] = { fCrashGroup.get(), fSnareGroup.get(), fTomsGroup.get(),
                                 fHatsGroup.get(), fHandGroup.get(), fPercGroup.get(),
                                 fMasterGroup.get() };
         for (GroupBox* g : panels) g->relayout();
+
+        // Master: Level on the left half, Map over Voices on the right (three across would squeeze
+        // the dropdowns in this narrow panel).
+        if (fMapDropdown && fVoicesDropdown)
+        {
+            int x, y, w, h;
+            fMasterGroup->contentBounds(x, y, w, h);
+            const int half = w / 2;
+            fKnobs[kParamLevel]->setSize(static_cast<uint>(half), static_cast<uint>(h));
+            fKnobs[kParamLevel]->setAbsolutePos(x, y);
+            fMapDropdown->setSize(static_cast<uint>(w - half), static_cast<uint>(h / 2));
+            fMapDropdown->setAbsolutePos(x + half, y);
+            fVoicesDropdown->setSize(static_cast<uint>(w - half), static_cast<uint>(h - h / 2));
+            fVoicesDropdown->setAbsolutePos(x + half, y + h / 2);
+        }
     }
 
     std::unique_ptr<GroupBox> makeGroup(const char* title, Color accent)
@@ -505,7 +535,7 @@ private:
     // Params are laid out family by family in ParamIndex, so each family is a contiguous range.
     GroupBox* groupFor(uint32_t i) const
     {
-        if (i == kParamLevel || i == kParamKeyMap) return fMasterGroup.get();
+        if (i == kParamLevel || i == kParamKeyMap || i == kParamVoices) return fMasterGroup.get();
         if (i <= kParamCrashStroke)  return fCrashGroup.get();
         if (i <= kParamSnareWires)  return fSnareGroup.get();
         if (i <= kParamTomReso)     return fTomsGroup.get();
@@ -516,7 +546,7 @@ private:
 
     static Color accentFor(uint32_t i)
     {
-        if (i == kParamLevel || i == kParamKeyMap) return colMaster();
+        if (i == kParamLevel || i == kParamKeyMap || i == kParamVoices) return colMaster();
         if (i <= kParamCrashStroke)  return colCrash();
         if (i <= kParamSnareWires)  return colSnare();
         if (i <= kParamTomReso)     return colToms();
@@ -576,6 +606,7 @@ private:
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
     std::unique_ptr<Dropdown>      fMapDropdown;    // key map: StruckKit / GM
+    std::unique_ptr<Dropdown>      fVoicesDropdown; // polyphony: 10 / 16 / 20 / 32
     float                          fValues[kParamCount];
     bool                           fHasFont = false;
     bool                           fInitialSizeNudged = false;

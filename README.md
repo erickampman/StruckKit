@@ -33,7 +33,7 @@ acoustic sound rather than to match PMU.
 Unlisted GM percussion (clap, tambourine, maracas, cabasa, guiro, whistles, cuica, vibraslap) is
 silent. The hi-hats share a choke group across voices (a `ChokeGroupState` shared through
 `ModuleSharedState`), so a closed hat cuts a ringing open one; the two triangles share another, so a
-muted triangle cuts an open one. Fixed 16-voice polyphony, oldest stolen; every drum rings out past note-off.
+muted triangle cuts an open one. Polyphony is 10, 16 (default), 20 or 32 voices (the Voices dropdown under Map), oldest stolen; every drum rings out past note-off.
 
 | Drum | Model |
 |---|---|
