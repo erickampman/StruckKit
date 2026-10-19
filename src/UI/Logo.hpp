@@ -6,9 +6,7 @@
 #define STRUCKKIT_LOGO_HPP
 
 #include "NanoVG.hpp"
-
-#include <cstdlib>
-#include <string>
+#include "OpenExternal.hpp"
 
 START_NAMESPACE_DGL
 
@@ -63,21 +61,7 @@ protected:
 private:
     NanoImage fImage;
 
-    // Hardcoded, fixed URL — shelling out is safe here since nothing user-controlled feeds into
-    // the command string. DPF has no built-in cross-platform "open URL" helper.
-    static void openWebsite()
-    {
-        const char* const url = "https://www.unlikelyware.com";
-#if defined(DISTRHO_OS_MAC)
-        const std::string cmd = std::string("open '") + url + "'";
-#elif defined(DISTRHO_OS_WINDOWS)
-        const std::string cmd = std::string("start ") + url;
-#else
-        const std::string cmd = std::string("xdg-open '") + url + "'";
-#endif
-        const int rc = std::system(cmd.c_str());
-        (void)rc; // best-effort; nothing sensible to do if the browser launch fails
-    }
+    static void openWebsite() { struckkit::openExternal("https://www.unlikelyware.com"); }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Logo)
 };

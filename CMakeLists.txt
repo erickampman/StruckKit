@@ -133,11 +133,18 @@ add_custom_target(generate_presets DEPENDS "${STRUCKKIT_GENERATED_PRESETS_H}")
 # on the resource file once built — same reasoning as the preset codegen above.
 set(STRUCKKIT_RESOURCES_HPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.hpp")
 set(STRUCKKIT_RESOURCES_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.cpp")
+# res2c embeds a whole folder and names symbols by basename without extension, so help.md (the
+# authoring source for help.html) would collide with help.html. Stage everything but *.md.
 file(GLOB STRUCKKIT_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Resources/*")
+list(FILTER STRUCKKIT_RESOURCE_FILES EXCLUDE REGEX "\\.md$")
+set(STRUCKKIT_RESOURCES_STAGE "${CMAKE_BINARY_DIR}/resources-staged")
 add_custom_command(
     OUTPUT "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${STRUCKKIT_RESOURCES_STAGE}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_RESOURCES_STAGE}"
+    COMMAND ${CMAKE_COMMAND} -E copy ${STRUCKKIT_RESOURCE_FILES} "${STRUCKKIT_RESOURCES_STAGE}"
     COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/dpf/utils/res2c.py"
-            EmbeddedResources "${CMAKE_SOURCE_DIR}/Resources" "${CMAKE_BINARY_DIR}/generated"
+            EmbeddedResources "${STRUCKKIT_RESOURCES_STAGE}" "${CMAKE_BINARY_DIR}/generated"
     DEPENDS ${STRUCKKIT_RESOURCE_FILES} "${CMAKE_SOURCE_DIR}/dpf/utils/res2c.py"
     COMMENT "Embedding Resources/* as compiled-in data")
 add_custom_target(generate_resources DEPENDS "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}")

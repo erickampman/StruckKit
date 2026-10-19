@@ -12,17 +12,21 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "Dropdown.hpp"
-#include "EmbeddedResources.hpp" // build-time codegen: Unlikelyware logo PNG bytes
+#include "EmbeddedResources.hpp" // build-time codegen: Unlikelyware logo PNG + help page bytes
 #include "GeneratedPresets.h"     // build-time codegen from Presets/*.json (see tools/gen_presets.py)
 #include "GroupBox.hpp"
+#include "HelpButton.hpp"
 #include "Knob.hpp"
 #include "Logo.hpp"
+#include "OpenExternal.hpp"
 #include "PopupMenu.hpp"
 #include "PresetKeys.hpp"         // param -> preset-JSON key map, shared with the dumper
 #include "PresetDump.hpp"         // dev-only JSON patch dumper (no-op unless STRUCKKIT_PRESET_DUMP=1)
@@ -39,6 +43,7 @@ using namespace struckkit;  // params (kParams, ParamIndex)
 using DGL_NAMESPACE::Color;
 using DGL_NAMESPACE::Dropdown;
 using DGL_NAMESPACE::GroupBox;
+using DGL_NAMESPACE::HelpButton;
 using DGL_NAMESPACE::Knob;
 using DGL_NAMESPACE::Logo;
 using DGL_NAMESPACE::PopupMenu;
@@ -334,6 +339,8 @@ public:
         fPresetDropdown->setPlaceholder("--");
         fPresetDropdown->setIndex(-1); // no preset selected until the user picks one
 
+        fHelpButton = std::make_unique<HelpButton>(this, [] { openHelp(); });
+
         fMenu = std::make_unique<PopupMenu>(this, this); // created last → draws on top
 
         layout();
@@ -460,6 +467,30 @@ protected:
 #endif
 
 private:
+    // The help page is embedded (Resources/help.html), so it can't be pointed at in place: write it,
+    // plus the logo it references as "Unlikelyware.png", to a temp folder and open that in the
+    // default browser. Rewritten on every click so it always matches this build.
+    static void openHelp()
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        const fs::path dir = fs::temp_directory_path(ec) / "StruckKit-Help";
+        if (ec) return;
+        fs::create_directories(dir, ec);
+        if (ec) return;
+
+        auto write = [&](const char* name, const unsigned char* data, unsigned int size) {
+            std::ofstream out(dir / name, std::ios::binary | std::ios::trunc);
+            out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+            return static_cast<bool>(out);
+        };
+        write("Unlikelyware.png", EmbeddedResources::Unlikelyware_Final_ColorData,
+              EmbeddedResources::Unlikelyware_Final_ColorDataSize);
+        if (!write("help.html", EmbeddedResources::helpData, EmbeddedResources::helpDataSize))
+            return;
+        openExternal((dir / "help.html").string());
+    }
+
     void layout()
     {
         const int W = getWidth(), H = getHeight();
@@ -481,6 +512,12 @@ private:
         fPresetDropdown->setUiScale(s);
         fPresetDropdown->setSize(static_cast<uint>(presetW), static_cast<uint>(presetH));
         fPresetDropdown->setAbsolutePos(W - M - presetW, static_cast<int>(4 * s));
+
+        // Help "?" just left of the preset selector, centred on the header's title line.
+        const int helpD = static_cast<int>(26 * s);
+        fHelpButton->setUiScale(s);
+        fHelpButton->setSize(static_cast<uint>(helpD), static_cast<uint>(helpD));
+        fHelpButton->setAbsolutePos(W - M - presetW - gap - helpD, static_cast<int>(26 * s) - helpD / 2);
 
         // Under the header: the KitMap across the full width (two keyboard octaves side by side),
         // then 2 columns × 3 rows of panels: Crash | Snare, Toms | Hats, Hand Drums | Percussion +
@@ -619,6 +656,7 @@ private:
     std::unique_ptr<PopupMenu>     fMenu;
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
+    std::unique_ptr<HelpButton>    fHelpButton;
     std::unique_ptr<Dropdown>      fMapDropdown;    // key map: StruckKit / GM
     std::unique_ptr<Dropdown>      fVoicesDropdown; // polyphony: 10 / 16 / 20 / 32
     const clap_plugin_t*           fPlugin = nullptr; // the raw CLAP plugin, via the seam
