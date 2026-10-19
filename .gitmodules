@@ -4,3 +4,6 @@
 [submodule "external/uw-core"]
 	path = external/uw-core
 	url = https://github.com/erickampman/uw-core.git
+[submodule "external/clap"]
+	path = external/clap
+	url = https://github.com/free-audio/clap

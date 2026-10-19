@@ -51,6 +51,11 @@ endif()
 # C is needed for DPF's pugl / dgl sources (Objective-C++ on macOS, which CMake enables itself).
 project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
 
+# Everything linked into the .clap shared module (the vendored engine, the plugin core, DPF's DGL)
+# must be position-independent. clang on Linux defaults to PIE and hides this; gcc does not
+# ("relocation R_X86_64_PC32 ... recompile with -fPIC"). As StruckSynth.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 set(CMAKE_CXX_STANDARD 20)          # PM framework uses std::numbers / std::span
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -137,37 +142,96 @@ add_custom_command(
     COMMENT "Embedding Resources/* as compiled-in data")
 add_custom_target(generate_resources DEPENDS "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}")
 
-# --- the plugin: CLAP + OpenGL UI, built with DPF --------------------------
-# DPF (vendored submodule) owns the plugin wrapper and generates the .clap from our DSP + UI
-# subclasses; the DSP side drives pm_framework's VoiceManager. The four ADSR knobs route to
-# the envelope module live.
+# --- DPF is used ONLY for the GUI ------------------------------------------
+# UIExporter + NanoVG + pugl. The CLAP entry point is ours (src/plugin.cpp), because DPF's generated
+# CLAP wrapper mis-sizes the editor — see that file's header. Same layout as StruckSynth.
 add_subdirectory(dpf)
-dpf_add_plugin(StruckKit
-    TARGETS clap
-    UI_TYPE opengl
-    FILES_DSP
-        plugin/StruckKitPlugin.cpp
-    FILES_UI
-        src/UI/StruckKitUI.cpp)
-# So both DSP and UI sources find DistrhoPluginInfo.h + StruckKitParams.h.
-target_include_directories(StruckKit PUBLIC plugin)
-# The DSP side pulls in the vendored engine.
-target_link_libraries(StruckKit-dsp PUBLIC pm_framework)
-# The UI's IFSControl pad draws the true DSP waveform via IFSCore (computeIFSWavetable), so it
-# links pm_framework too. Static-lib symbol extraction dedups it in the final .clap.
-target_link_libraries(StruckKit-ui PUBLIC pm_framework)
-# Generated preset array (see the codegen step above) — must exist before StruckKitUI.cpp compiles.
-add_dependencies(StruckKit-ui generate_presets)
-target_include_directories(StruckKit-ui PRIVATE "${CMAKE_BINARY_DIR}/generated")
-# Embedded logo bytes — the generated .cpp defines the data the .hpp declares.
-add_dependencies(StruckKit-ui generate_resources)
-target_sources(StruckKit-ui PRIVATE "${STRUCKKIT_RESOURCES_CPP}")
-# DPF may default to an older standard; the DSP glue includes C++20 framework headers.
-set_target_properties(StruckKit-dsp StruckKit-ui PROPERTIES
-    CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+# dgl-opengl is normally created by dpf_add_plugin()'s UI_TYPE branch; call the same helper
+# directly. SHARED_RESOURCES=TRUE embeds DGL's DejaVu font (fontFace(NANOVG_DEJAVU_SANS_TTF)).
+dpf__add_dgl_opengl(TRUE FALSE FALSE)
+# DGL is vendored, so its warnings are not ours to fix: gcc's "<cstdbool> is deprecated" #warning
+# from pugl.hpp under C++17+, and a stringop-overflow false positive in nanovg's stb_image.h.
+target_compile_options(dgl-opengl PRIVATE -w)
+
+# --- struckkit_core: the whole plugin (DSP + host glue + GUI shell) as one static archive ----
+# Linked into the .clap output below. Hidden visibility for our own objects, so clap_entry — marked
+# CLAP_EXPORT in plugin.cpp — is the only symbol this target exports (the vendored engine and DGL
+# libraries linked in keep their own default visibility).
+add_library(struckkit_core STATIC
+    src/plugin.cpp
+    src/UI/StruckKitUI.cpp
+    "${STRUCKKIT_RESOURCES_CPP}"              # generated: the logo bytes (see above)
+    "${DPF_ROOT_DIR}/distrho/src/DistrhoUI.cpp"
+    "${DPF_ROOT_DIR}/distrho/src/DistrhoUtils.cpp")
+set_target_properties(struckkit_core PROPERTIES
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON)
+target_include_directories(struckkit_core PUBLIC
+    src                               # plugin_gui.h (the DSP <-> GUI seam)
+    plugin                            # DistrhoPluginInfo.h + StruckKitParams.h
+    external/clap/include             # <clap/clap.h> (the raw entry point)
+    "${CMAKE_BINARY_DIR}/generated"   # GeneratedPresets.h + EmbeddedResources.hpp
+    "${DPF_ROOT_DIR}/distrho")        # DistrhoUI.hpp / DistrhoUIInternal.hpp
+target_compile_definitions(struckkit_core PUBLIC
+    DISTRHO_PLUGIN_TARGET_CLAP        # DistrhoUIPrivateData.hpp keys DISTRHO_UI_USES_SIZE_REQUEST off it
+    DISTRHO_IS_STANDALONE=0
+    STRUCKKIT_VERSION_STRING="${PROJECT_VERSION}")
+# The UI's IFSControl pad draws the true DSP waveform via IFSCore (computeIFSWavetable), so the GUI
+# shell needs pm_framework as well as the DSP side.
+target_link_libraries(struckkit_core PUBLIC pm_framework dgl-opengl)
+add_dependencies(struckkit_core generate_presets generate_resources)
+# These two reach pugl.hpp through DPF's private UI headers; mute only its <cstdbool> #warning.
+set_source_files_properties(src/UI/StruckKitUI.cpp "${DPF_ROOT_DIR}/distrho/src/DistrhoUI.cpp"
+    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-cpp>")
+dpf__add_plugin_specific_ui_sources(struckkit_core FALSE)   # macOS: DistrhoUI_macOS.mm
+if(APPLE)
+    # The live Retina scale of the host window (see the file's header comment).
+    target_sources(struckkit_core PRIVATE src/UI/BackingScale_mac.mm)
+endif()
 # Dev-only JSON patch dumper (keystroke → file); compiled out of release builds.
 if(STRUCKKIT_PRESET_DUMP)
-    target_compile_definitions(StruckKit-ui PRIVATE STRUCKKIT_PRESET_DUMP=1)
+    target_compile_definitions(struckkit_core PRIVATE STRUCKKIT_PRESET_DUMP=1)
+endif()
+
+# --- the .clap output ------------------------------------------------------
+# A MODULE with no sources of its own would be rejected by CMake, and simply linking the archive is
+# not enough: nothing references clap_entry, so the linker would drop the object that defines it.
+# Hence the empty placeholder plus a whole-archive force-load.
+set(STRUCKKIT_EMPTY_SOURCE "${CMAKE_BINARY_DIR}/generated/struckkit_empty.c")
+set(_struckkit_empty_content "typedef int struckkit_empty_translation_unit_marker;\n")
+set(_struckkit_empty_existing "")
+if(EXISTS "${STRUCKKIT_EMPTY_SOURCE}")
+    file(READ "${STRUCKKIT_EMPTY_SOURCE}" _struckkit_empty_existing)
+endif()
+if(NOT _struckkit_empty_existing STREQUAL _struckkit_empty_content)
+    file(WRITE "${STRUCKKIT_EMPTY_SOURCE}" "${_struckkit_empty_content}")
+endif()
+
+# The target keeps the name the DPF build gave it (StruckKit-clap), and the output stays at
+# bin/StruckKit.clap, so the signing and symlink steps below — and anyone's habits — are unchanged.
+add_library(StruckKit-clap MODULE "${STRUCKKIT_EMPTY_SOURCE}")
+target_link_libraries(StruckKit-clap PRIVATE struckkit_core)
+if(APPLE)
+    target_link_options(StruckKit-clap PRIVATE "-Wl,-force_load,$<TARGET_FILE:struckkit_core>")
+    set_target_properties(StruckKit-clap PROPERTIES
+        OUTPUT_NAME "StruckKit"
+        BUNDLE TRUE
+        BUNDLE_EXTENSION "clap"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.unlikelyware.struckkit"
+        MACOSX_BUNDLE_BUNDLE_NAME "StruckKit"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
+else()
+    target_link_options(StruckKit-clap PRIVATE
+        "-Wl,--whole-archive" "$<TARGET_FILE:struckkit_core>" "-Wl,--no-whole-archive")
+    set_target_properties(StruckKit-clap PROPERTIES
+        OUTPUT_NAME "StruckKit"
+        PREFIX "" SUFFIX ".clap"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 endif()
 
 # --- macOS: ad-hoc sign the .clap bundle ----------------------------------

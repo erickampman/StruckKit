@@ -6,9 +6,12 @@
 
 #include "DistrhoUI.hpp"
 
+#include "src/DistrhoUIInternal.hpp" // DPF's UIExporter (DPF_ROOT_DIR/distrho is on the include path)
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
@@ -24,7 +27,10 @@
 #include "PresetKeys.hpp"         // param -> preset-JSON key map, shared with the dumper
 #include "PresetDump.hpp"         // dev-only JSON patch dumper (no-op unless STRUCKKIT_PRESET_DUMP=1)
 
+#include "CPPTypes.hpp"            // DEFAULT_SAMPLE_RATE (the UIExporter's nominal rate below)
+#include "DistrhoPluginInfo.h"
 #include "StruckKitParams.h"
+#include "plugin_gui.h"            // the C seam to src/plugin.cpp (the raw CLAP plugin)
 
 START_NAMESPACE_DISTRHO
 
@@ -248,13 +254,22 @@ public:
     StruckKitUI()
         : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT)
     {
-        setGeometryConstraints(864, 640, true, false); // lock the 1080:800 design ratio (0.8x min)
+        // 0.8x minimum, any aspect ratio: layout() scales with the width and fits the rows to the
+        // height. Only UI-initiated resizes see this; the host's go through gui_adjust_size below.
+        setGeometryConstraints(kMinWidth, kMinHeight, false, false);
         fHasFont = loadSharedResources();               // DPF's bundled DejaVu Sans for the title
 
+        // DPF is only the GUI layer here: UIExporter set uiData->dspPtr (our clap_plugin_t) before
+        // calling createUI(), so the seam in plugin_gui.h is already usable. Reading the values
+        // through it means an editor opened on a host-restored patch starts in sync instead of
+        // showing the parameter defaults.
+        fPlugin = static_cast<const clap_plugin_t*>(getPluginInstancePointer());
         for (uint32_t i = 0; i < kParamCount; ++i)
-            fValues[i] = kParams[i].def;
+            fValues[i] = fPlugin != nullptr ? static_cast<float>(sk_param_value(fPlugin, i))
+                                            : kParams[i].def;
 
         fKitMap = std::make_unique<KitMap>(this);
+        fKitMap->setKeyMap(static_cast<int>(fValues[kParamKeyMap] + 0.5f));
         fLogo = std::make_unique<Logo>(this, EmbeddedResources::Unlikelyware_Final_ColorData,
                                        EmbeddedResources::Unlikelyware_Final_ColorDataSize);
 
@@ -279,7 +294,7 @@ public:
                 d->setId(i);
                 d->setLabel("Map");
                 d->setChoices({ "StruckKit", "GM" });
-                d->setIndex(static_cast<int>(s.def));
+                d->setIndex(static_cast<int>(fValues[i] + 0.5f));
                 g->addControl(d.get());
                 fMapDropdown = std::move(d);
                 continue;
@@ -290,7 +305,7 @@ public:
                 d->setId(i);
                 d->setLabel("Voices");
                 d->setChoices(std::vector<std::string>(kVoiceChoiceNames, kVoiceChoiceNames + kVoiceChoiceCount));
-                d->setIndex(static_cast<int>(s.def));
+                d->setIndex(static_cast<int>(fValues[i] + 0.5f));
                 g->addControl(d.get());
                 fVoicesDropdown = std::move(d);
                 continue;
@@ -300,7 +315,7 @@ public:
             k->setLabel(shortLabel(i));
             k->setAccentColor(accentFor(i));
             k->configure(s.min, s.max, s.logarithmic, s.def);
-            k->setRealValue(s.def, false);
+            k->setRealValue(fValues[i], false);
             k->setFormatter(formatterFor(i));
             g->addControl(k.get());
             fKnobs[i] = std::move(k);
@@ -427,17 +442,6 @@ protected:
         }
     }
     void onResize(const ResizeEvent& ev) override { UI::onResize(ev); layout(); }
-
-    // Some Linux hosts (notably REAPER via pugl) don't apply the UI's initial size until the
-    // event loop starts pumping, so the window loads mis-sized (top gap, bottom row clipped)
-    // until a manual resize. Re-assert the default size once on the first idle tick to force
-    // the host to apply correct geometry, which drives onResize() -> layout().
-    void uiIdle() override
-    {
-        if (fInitialSizeNudged) return;
-        fInitialSizeNudged = true;
-        setSize(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
-    }
 
 #if STRUCKKIT_PRESET_DUMP
     // Dev-only: press 'P' to write the current patch as JSON to $HOME (see PresetDump.hpp). fValues
@@ -617,11 +621,17 @@ private:
     std::unique_ptr<Dropdown>      fPresetDropdown;
     std::unique_ptr<Dropdown>      fMapDropdown;    // key map: StruckKit / GM
     std::unique_ptr<Dropdown>      fVoicesDropdown; // polyphony: 10 / 16 / 20 / 32
+    const clap_plugin_t*           fPlugin = nullptr; // the raw CLAP plugin, via the seam
     float                          fValues[kParamCount];
     bool                           fHasFont = false;
-    bool                           fInitialSizeNudged = false;
     int                            fTitleX = 16;
 
+public:
+    // Smallest editor: 0.8x the 1080 x 800 design size.
+    static constexpr uint kMinWidth  = 864;
+    static constexpr uint kMinHeight = 640;
+
+private:
     // Sentinel id for the preset dropdown, past the real param range.
     static constexpr uint32_t kPresetDropdownId = kParamCount;
 
@@ -631,6 +641,272 @@ private:
 UI* createUI()
 {
     return new StruckKitUI();
+}
+
+// ================================================================================================
+// CLAP `gui` extension
+// ================================================================================================
+// Modelled on StruckSynth's and PlainOldSynth's UI: gui_create() only allocates a holder, because
+// UIExporter cannot be constructed until the host hands us a parent window in set_parent(). DPF is
+// used purely as the GUI layer — the plugin itself is the raw CLAP plugin in src/plugin.cpp, so
+// parameter traffic crosses the C seam in plugin_gui.h rather than DPF's plugin side.
+//
+// Sizing is the reason this exists (see plugin.cpp's header). The host owns the editor size: it is
+// kept in host units, the host's requests are accepted as they are (only clamped to the minimum),
+// and the plugin never asks the host for a size of its own.
+
+namespace {
+
+struct GuiState {
+    const clap_plugin_t* plugin = nullptr;
+    std::unique_ptr<UIExporter> exporter;
+    uintptr_t parentWindow = 0;
+    // The editor size in the HOST's units — logical points on macOS (CLAP cocoa), pixels on X11.
+    // This, not the UIExporter's pixel size, is the source of truth: the pixel size is derived from
+    // it with the live scale (applySize), so it can be re-derived when the window changes screens.
+    uint32_t width  = DISTRHO_UI_DEFAULT_WIDTH;
+    uint32_t height = DISTRHO_UI_DEFAULT_HEIGHT;
+    double appliedScale = 0.0;   // the scale the UIExporter's pixel size was last derived with
+    bool timerRegistered = false;
+    clap_id timerId = 0;
+};
+
+#ifdef __APPLE__
+extern "C" double sk_gui_backing_scale(uintptr_t nsView);   // BackingScale_mac.mm
+#endif
+
+// Host units → UIExporter pixels. On macOS this is the backing scale of the window the editor is in
+// RIGHT NOW, deliberately not UIExporter::getScaleFactor(): DPF caches that once, possibly from the
+// wrong screen, and never updates it, while pugl maps mouse positions with the live value — see
+// BackingScale_mac.mm. On X11, CLAP sizes are already physical pixels, so there is nothing to convert
+// (matching DPF's own CLAP wrapper, which scales on macOS only).
+double liveScale(const GuiState* gui)
+{
+#ifdef __APPLE__
+    return sk_gui_backing_scale(gui->parentWindow);
+#else
+    (void)gui;
+    return 1.0;
+#endif
+}
+
+// Size the UIExporter to gui->width x gui->height host units at the live scale. pugl re-reads the
+// screen's scale while doing this and re-sends the pixel size, so it also re-syncs DPF after a move
+// between screens even when the size in points did not change.
+void applySize(GuiState* gui)
+{
+    if (!gui->exporter) return;
+    const double scale = liveScale(gui);
+    gui->appliedScale = scale;
+    gui->exporter->setWindowSizeFromHost(uint(std::lround(gui->width  * scale)),
+                                         uint(std::lround(gui->height * scale)));
+}
+
+#ifdef __APPLE__
+constexpr const char* kWindowApi = CLAP_WINDOW_API_COCOA;
+#else
+constexpr const char* kWindowApi = CLAP_WINDOW_API_X11;
+#endif
+
+bool gui_is_api_supported(const clap_plugin_t*, const char* api, bool isFloating)
+{
+    return !isFloating && std::strcmp(api, kWindowApi) == 0;
+}
+
+bool gui_get_preferred_api(const clap_plugin_t*, const char** api, bool* isFloating)
+{
+    *api = kWindowApi;
+    *isFloating = false;
+    return true;
+}
+
+bool gui_create(const clap_plugin_t* plugin, const char* api, bool isFloating)
+{
+    if (!gui_is_api_supported(plugin, api, isFloating)) return false;
+    auto* gui = new GuiState();
+    gui->plugin = plugin;
+    sk_plugin_set_gui(plugin, gui);   // plugin.cpp owns the pointer and hands it back to us
+    return true;
+}
+
+void gui_destroy(const clap_plugin_t* plugin)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    sk_plugin_set_gui(plugin, nullptr);
+    if (gui == nullptr) return;
+
+    if (gui->timerRegistered) {
+        const clap_host_t* host = sk_plugin_host(plugin);
+        const auto* timer = static_cast<const clap_host_timer_support_t*>(
+            host->get_extension(host, CLAP_EXT_TIMER_SUPPORT));
+        if (timer != nullptr) timer->unregister_timer(host, gui->timerId);
+    }
+    delete gui;   // the UIExporter is destroyed here, which tears the UI down
+}
+
+// The UIExporter's edit/set callbacks. `ptr` is whatever was passed as UIExporter's first argument —
+// we pass the clap_plugin_t, so these forward straight into the seam.
+void onEditParam(void* ptr, uint32_t index, bool started)
+{
+    const auto* plugin = static_cast<const clap_plugin_t*>(ptr);
+    if (started) sk_param_begin_gesture(plugin, index);
+    else         sk_param_end_gesture(plugin, index);
+}
+
+void onSetParam(void* ptr, uint32_t index, float value)
+{
+    sk_param_set_from_gui(static_cast<const clap_plugin_t*>(ptr), index, double(value));
+}
+
+bool gui_set_scale(const clap_plugin_t*, double) { return false; }   // logical size API (cocoa): no-op
+
+bool gui_get_size(const clap_plugin_t* plugin, uint32_t* width, uint32_t* height)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr) return false;
+    // Host units, straight from the source of truth. Converting the UIExporter's pixel size back
+    // with DPF's cached scale is what made the host allocate a container of the wrong size.
+    *width  = gui->width;
+    *height = gui->height;
+    return true;
+}
+
+bool gui_can_resize(const clap_plugin_t*) { return true; }
+
+// No aspect-ratio lock, as PlainOldSynth: layout() handles any shape, and a host enforcing a ratio
+// on a window that also carries its own chrome (REAPER) is what made resizing misbehave.
+bool gui_get_resize_hints(const clap_plugin_t*, clap_gui_resize_hints_t* hints)
+{
+    hints->can_resize_horizontally = true;
+    hints->can_resize_vertically   = true;
+    hints->preserve_aspect_ratio   = false;
+    hints->aspect_ratio_width      = 0;
+    hints->aspect_ratio_height     = 0;
+    return true;
+}
+
+// Accept the host's size, held to the minimum; never reshaped otherwise.
+bool gui_adjust_size(const clap_plugin_t*, uint32_t* width, uint32_t* height)
+{
+    *width  = std::max<uint32_t>(*width,  StruckKitUI::kMinWidth);
+    *height = std::max<uint32_t>(*height, StruckKitUI::kMinHeight);
+    return true;
+}
+
+bool gui_set_size(const clap_plugin_t* plugin, uint32_t width, uint32_t height)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr) return false;
+    gui->width  = width;
+    gui->height = height;
+    applySize(gui);
+    return true;
+}
+
+bool gui_set_parent(const clap_plugin_t* plugin, const clap_window_t* window)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr || std::strcmp(window->api, kWindowApi) != 0) return false;
+
+    // cocoa is a void*, x11 is already an integer handle — hence the different casts.
+#ifdef __APPLE__
+    gui->parentWindow = reinterpret_cast<uintptr_t>(window->cocoa);
+#else
+    gui->parentWindow = static_cast<uintptr_t>(window->x11);
+#endif
+
+    if (!gui->exporter) {
+        gui->exporter.reset(new UIExporter(
+            const_cast<clap_plugin_t*>(plugin),   // callbacksPtr → the edit/set callbacks above
+            gui->parentWindow,                    // winId: the host's embed target
+            DEFAULT_SAMPLE_RATE,                  // the UI does not need the real rate
+            onEditParam, onSetParam,
+            nullptr, nullptr, nullptr, nullptr,   // state / note / size / file callbacks: unused
+            nullptr,                              // bundlePath
+            const_cast<clap_plugin_t*>(plugin),   // dspPtr → UI::getPluginInstancePointer()
+            0.0,                                  // scaleFactor: 0 = auto
+            // kTypeClassic, not kTypeAuto: matches DPF's own CLAP wrapper for this embedded case.
+            DGL_NAMESPACE::Application::kTypeClassic));
+        // The UIExporter starts at DISTRHO_UI_DEFAULT_WIDTH x HEIGHT *pixels*; put it at the host-unit
+        // size instead, at the scale of the window it is actually in.
+        applySize(gui);
+    }
+    return true;
+}
+
+bool gui_set_transient(const clap_plugin_t*, const clap_window_t*) { return false; }   // embedded only
+
+void gui_suggest_title(const clap_plugin_t*, const char*) {}
+
+bool gui_show(const clap_plugin_t* plugin)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr || !gui->exporter) return false;
+
+    if (!gui->timerRegistered) {
+        const clap_host_t* host = sk_plugin_host(plugin);
+        const auto* timer = static_cast<const clap_host_timer_support_t*>(
+            host->get_extension(host, CLAP_EXT_TIMER_SUPPORT));
+        if (timer != nullptr && timer->register_timer(host, 16 /* ~60fps */, &gui->timerId))
+            gui->timerRegistered = true;
+    }
+    return true;
+}
+
+bool gui_hide(const clap_plugin_t* plugin)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr || !gui->exporter) return false;
+
+    if (gui->timerRegistered) {
+        const clap_host_t* host = sk_plugin_host(plugin);
+        const auto* timer = static_cast<const clap_host_timer_support_t*>(
+            host->get_extension(host, CLAP_EXT_TIMER_SUPPORT));
+        if (timer != nullptr) timer->unregister_timer(host, gui->timerId);
+        gui->timerRegistered = false;
+    }
+    return true;
+}
+
+const clap_plugin_gui_t kGui = {
+    .is_api_supported  = gui_is_api_supported,
+    .get_preferred_api = gui_get_preferred_api,
+    .create            = gui_create,
+    .destroy           = gui_destroy,
+    .set_scale         = gui_set_scale,
+    .get_size          = gui_get_size,
+    .can_resize        = gui_can_resize,
+    .get_resize_hints  = gui_get_resize_hints,
+    .adjust_size       = gui_adjust_size,
+    .set_size          = gui_set_size,
+    .set_parent        = gui_set_parent,
+    .set_transient     = gui_set_transient,
+    .suggest_title     = gui_suggest_title,
+    .show              = gui_show,
+    .hide              = gui_hide,
+};
+
+} // namespace
+
+extern "C" const clap_plugin_gui_t* sk_gui_extension(void) { return &kGui; }
+
+// Host automation → an open editor. Called on the main thread by plugin.cpp.
+extern "C" void sk_gui_push_param(void* guiPtr, uint32_t index, double value)
+{
+    auto* gui = static_cast<GuiState*>(guiPtr);
+    if (gui != nullptr && gui->exporter)
+        gui->exporter->parameterChanged(index, float(value));
+}
+
+// CLAP timer-support → pump the DPF/pugl event loop.
+extern "C" void sk_gui_on_timer(const clap_plugin_t* plugin, clap_id)
+{
+    auto* gui = static_cast<GuiState*>(sk_plugin_get_gui(plugin));
+    if (gui == nullptr || !gui->exporter) return;
+    // The host window moved to a screen with a different backing scale (or the size was set before
+    // it was in a window): re-derive the pixel size so drawing and mouse agree again.
+    if (liveScale(gui) != gui->appliedScale) applySize(gui);
+    gui->exporter->plugin_idle();
 }
 
 END_NAMESPACE_DISTRHO

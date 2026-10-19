@@ -1,7 +1,11 @@
 // DistrhoPluginInfo.h — compile-time description of the StruckKit plugin for DPF.
-// DPF reads these macros to generate the CLAP (and, if enabled, VST3/LV2) wrapper around
-// our Plugin/UI subclasses. IS_SYNTH gives it a note-input port + the CLAP "instrument"
-// feature, and pulls in MIDI input automatically.
+//
+// IMPORTANT: the DISTRHO_PLUGIN_* *identity* macros below are INERT. StruckKit does NOT use
+// dpf_add_plugin: it implements the CLAP entry point itself in src/plugin.cpp (see that file's
+// header for why — chiefly that DPF's generated wrapper mis-sizes the editor).
+//
+// The DISTRHO_UI_* macros DO bind: DPF is used here purely as the GUI layer (NanoVG widgets driven
+// through UIExporter), exactly as StruckSynth and PlainOldSynth do it.
 
 #ifndef DISTRHO_PLUGIN_INFO_H_INCLUDED
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED
@@ -22,6 +26,9 @@
 #define DISTRHO_PLUGIN_WANT_MIDI_INPUT 1
 #define DISTRHO_PLUGIN_WANT_PROGRAMS   0
 #define DISTRHO_PLUGIN_WANT_STATE      0
+// Gates UI::getPluginInstancePointer() (DistrhoUI.hpp), which the GUI shell uses to recover the
+// clap_plugin_t* UIExporter was constructed with. Inert for the raw CLAP plugin itself.
+#define DISTRHO_PLUGIN_WANT_DIRECT_ACCESS 1
 
 #define DISTRHO_UI_USE_NANOVG          1   // knobs/labels drawn with NanoVG vector primitives
 #define DISTRHO_UI_USER_RESIZABLE      1

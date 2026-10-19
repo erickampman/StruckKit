@@ -57,25 +57,31 @@ as such in the source.
 `pm-drumkit-render [out-dir]` is the measuring bench: decay, partials, pitch bend, band energies and
 cymbal bloom over time for each drum, and listening WAVs when given a directory.
 
-MIDI notes are sample-accurate: `run()` splits rendering at each event's frame offset.
-Parameter changes are applied per host block (DPF applies them before `run()`).
+MIDI notes and parameter changes are sample-accurate: `process()` splits rendering at each
+event's frame offset. MIDI 1.0 and MIDI 2.0 (UMP) note input are both accepted.
 
-The wrapper is built with the [DISTRHO Plugin Framework (DPF)](https://github.com/DISTRHO/DPF),
-which generates the CLAP around our DSP + UI subclasses.
+The CLAP plugin is hand-written (`src/plugin.cpp`), as in StruckSynth and PlainOldSynth. The
+[DISTRHO Plugin Framework (DPF)](https://github.com/DISTRHO/DPF) is used only for the GUI
+(UIExporter + NanoVG); `src/UI/StruckKitUI.cpp` implements the CLAP `gui` extension around it.
+DPF's own generated CLAP wrapper mis-sized the editor (aspect-ratio lock forced on the host's
+resizes, a plugin-initiated resize on open, and a stale Retina scale on macOS), which is why it
+is no longer used.
 
 ## Layout
 
-The engine (`src/`) mirrors PolygraphModular's structure; the DPF plugin assembly lives in
-`plugin/` + `src/UI/`:
+The engine (`src/`) mirrors PolygraphModular's structure; the CLAP plugin is `src/plugin.cpp`,
+with its GUI shell in `src/UI/`:
 
 ```
-plugin/               the DPF plugin definition (the CLAP wrapper is generated from these)
-                        DistrhoPluginInfo.h (plugin flags), StruckKitParams.h (shared param
-                        table), StruckKitPlugin.cpp (DSP: MIDI + params → VoiceManager)
+plugin/               DistrhoPluginInfo.h (DPF's UI flags; its plugin-identity macros are inert),
+                        StruckKitParams.h (the param table shared by DSP and UI)
+src/plugin.cpp        the CLAP plugin: entry, params, state, MIDI → VoiceManager, voice-info
+src/plugin_gui.h      the C seam between plugin.cpp and the GUI shell
 src/UI/               the plugin GUI (reusable NanoVG widgets + the panel)
                         Knob, Slider, Toggle, Dropdown, PopupMenu, TabBar, GroupBox, TitleText,
                         Logo; PresetKeys / PresetDump (preset menu + dev-only JSON dumper);
-                        StruckKitUI.cpp — the kit map + one knob panel per drum family
+                        StruckKitUI.cpp — the kit map + one knob panel per drum family, and
+                        the CLAP gui extension (BackingScale_mac.mm: live Retina scale)
 src/Common/           shim + MIDI + params + utilities
                         pm_compat.h (Apple→portable), pm_midi.* (decoded UMP over uw::ump +
                         MIDI-1 decode), pm_params.h / pm_param_data.* / pm_addresses.h,
@@ -94,14 +100,15 @@ Presets/              factory presets (JSON), compiled into GeneratedPresets.h b
                         tools/gen_presets.py
 Resources/            font + logo, embedded into the binary at build time
 test/                 in-process self-tests (see TESTING.md)
-dpf/                  DISTRHO Plugin Framework (submodule, + nested pugl) — generates the .clap
+dpf/                  DISTRHO Plugin Framework (submodule, + nested pugl) — the GUI layer only
+external/clap         the CLAP SDK headers (submodule, 1.2.9)
 external/uw-core      uw-core (private submodule): uw::ump, the UMP layer shared with StageHand,
                         Umpire and the other plugins; built UMP-only (UW_CORE_UMP_ONLY)
 ```
 
 Vendored PolygraphModular files keep their original `#include "X.hpp"` form; every framework
-folder is on the include path so they resolve across `Common/` `Module/` `Voice/`. The DSP
-wrapper links the `pm_framework` static lib; DPF owns the plugin/UI lifecycle.
+folder is on the include path so they resolve across `Common/` `Module/` `Voice/`. The
+plugin links the `pm_framework` static lib.
 
 ## Build
 

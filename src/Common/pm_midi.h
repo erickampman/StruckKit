@@ -72,7 +72,7 @@ inline double pitchAttributeToFrequency(uint16_t attribute) {
 UmpMessage fromUmp(const uw::MidiMessage& m);
 
 // MIDI 1.0 bytes → UmpMessages, through uw::ump's MIDI 1.0 parser and its MIDI 1.0 → 2.0
-// upconverter. One per MIDI 1.0 stream (the DPF wrapper delivers MIDI 1.0 bytes): both keep
+// upconverter. One per MIDI 1.0 stream (the plugin feeds CLAP MIDI 1.0 events through it): both keep
 // state across messages (running status; bank select and RPN/NRPN selection, which become
 // single MIDI 2.0 messages). A MIDI 1.0 note-on with velocity 0 becomes a note-off. Only
 // channel-voice messages reach the sink.

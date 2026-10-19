@@ -32,7 +32,7 @@ PolygraphModular headers stay on that code's own warning style.
 
 ## What each test covers
 
-The CTest cases exercise the `pm_framework` engine end-to-end (the DPF plugin wrapper
+The CTest cases exercise the `pm_framework` engine end-to-end (the CLAP plugin
 itself is covered by `clap-validator`, below):
 
 | CTest name       | Executable               | Verifies |
