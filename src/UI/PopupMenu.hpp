@@ -58,6 +58,14 @@ public:
         repaint();
     }
 
+    // Close without selecting anything (focus loss, Escape).
+    void dismiss()
+    {
+        if (!isVisible())
+            return;
+        hideAndRedraw();
+    }
+
     uint32_t tag() const { return fTag; }
     // Scales font size AND row height/padding together — scaling font alone (without the row
     // it sits in) is what causes menu text to overlap adjacent rows.
@@ -102,12 +110,20 @@ protected:
         if (ev.press) // any press while open resolves (select a row, or dismiss)
         {
             const int idx = rowAt(ev.pos.getX(), ev.pos.getY());
-            hide();
-            repaint();
+            hideAndRedraw();
             if (idx >= 0)
                 fCallback->menuSelected(this, idx);
         }
         return true; // modal: consume all events while visible
+    }
+
+    bool onKeyboard(const KeyboardEvent& ev) override
+    {
+        if (!isVisible())
+            return false;
+        if (ev.press && ev.key == kKeyEscape)
+            dismiss();
+        return true; // modal
     }
 
     bool onMotion(const MotionEvent& ev) override
@@ -120,6 +136,15 @@ protected:
     }
 
 private:
+    // SubWidget::repaint() is a no-op once the widget is hidden, so hide() + repaint() leaves the
+    // menu's last frame on screen. Invalidate the window area under the menu explicitly instead.
+    void hideAndRedraw()
+    {
+        hide();
+        if (TopLevelWidget* const topw = getTopLevelWidget())
+            topw->repaint(getConstrainedAbsoluteArea());
+    }
+
     int rowAt(double mx, double my) const
     {
         if (mx < 0 || mx > getWidth()) return -1;

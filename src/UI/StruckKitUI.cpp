@@ -359,6 +359,16 @@ protected:
         fMenu->openFor(d->getId(), d->choices(), d->index(), x, y + h, y, w,
                        static_cast<int>(getHeight()));
     }
+    // A click outside the plugin window never reaches us, so treat losing focus to the host (or
+    // another app) as "clicked elsewhere" and close any open menu. Clicks inside the window are
+    // handled by the menu itself.
+    void uiFocus(bool focus, DGL_NAMESPACE::CrossingMode mode) override
+    {
+        UI::uiFocus(focus, mode);
+        if (!focus && fMenu != nullptr)
+            fMenu->dismiss();
+    }
+
     void menuSelected(PopupMenu* menu, int index) override
     {
         const uint32_t id = menu->tag();
