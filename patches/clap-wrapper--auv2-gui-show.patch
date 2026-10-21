@@ -1,0 +1,43 @@
+diff --git a/src/detail/auv2/wrappedview.asinclude.mm b/src/detail/auv2/wrappedview.asinclude.mm
+index 6734113..89399eb 100644
+--- a/src/detail/auv2/wrappedview.asinclude.mm
++++ b/src/detail/auv2/wrappedview.asinclude.mm
+@@ -111,8 +111,6 @@ - (id)initWithAUv2:(free_audio::auv2_wrapper::ui_connection *)cont preferredSize
+   }
+   self = [super initWithFrame:NSMakeRect(0, 0, size.width, size.height)];
+ 
+-  // gui->show(ui._plugin->_plugin);
+-
+   clap_window_t m;
+   m.api = CLAP_WINDOW_API_COCOA;
+   m.ptr = self;
+@@ -134,6 +132,19 @@ - (id)initWithAUv2:(free_audio::auv2_wrapper::ui_connection *)cont preferredSize
+     gui->set_size(ui._plugin->_plugin, size.width, size.height);
+   }
+ 
++  // PMU LOCAL PATCH (2026-09-10, clap-wrapper v0.16.0 vendored copy): upstream leaves every
++  // gui->show() call in this file commented out (here and in -setFrame: below), so a CLAP plugin
++  // whose own show() extension callback does anything load-bearing — PolygraphModularUnified's
++  // gui_show() in src/gui_dgl.cpp registers the CLAP_EXT_TIMER_SUPPORT host timer that pumps
++  // DPF's pugl/NanoVG render loop THERE, not in create()/set_parent() — never gets told to
++  // render under AUv2 hosting: the view exists and is parented, but nothing ever draws into it.
++  // Confirmed via REAPER (blank/unresponsive AUv2 window; same plugin's VST3/CLAP builds render
++  // fine, since DPF's own VST3/CLAP host-side UI glue calls show() itself). Per CLAP's gui
++  // extension lifecycle (create -> set_parent -> set_size -> show), the right place for this is
++  // here, after set_parent/set_size and before the idle timer starts — NOT at the original
++  // (now-removed) call site above set_parent, which would have shown a still-unparented view.
++  gui->show(ui._plugin->_plugin);
++
+   idleTimer = nil;
+   CFTimeInterval TIMER_INTERVAL = .05;  // In SurgeGUISynthesizer.h it uses 50 ms
+   CFRunLoopTimerContext TimerContext = {0, self, NULL, NULL, NULL};
+@@ -193,7 +204,8 @@ - (void)setFrame:(NSRect)newSize
+     // AUv2 gui always uses logical size
+     gui->set_size(ui._plugin->_plugin, newSize.size.width, newSize.size.height);
+   }
+-  // gui->show(ui._plugin->_plugin);
++  // Intentionally still not calling gui->show() here (PMU local patch, see -initWithAUv2: above)
++  // — show() only needs to fire once, at construction; it's not part of CLAP's resize contract.
+ }
+ 
+ @end

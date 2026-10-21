@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21)   # clap-wrapper needs 3.21
 
 # --- macOS: target OS and architectures (must be set before project()) ------
 # Without a deployment target the binary targets whatever macOS it was built on and may refuse to
@@ -19,8 +19,10 @@ endif()
 # which dies with `make: /Applications/Xcode: No such file or directory` before any of our code is
 # even looked at. Pick a make whose own path is space-free instead. (The other way out is to point
 # the active developer directory at a space-free install: `sudo xcode-select -s /Applications/Xcode.app`.)
-# This must run before project(). An explicit -DCMAKE_MAKE_PROGRAM=... is always left alone.
-if(APPLE AND (NOT CMAKE_MAKE_PROGRAM OR CMAKE_MAKE_PROGRAM STREQUAL "/usr/bin/make"))
+# This must run before project(). An explicit -DCMAKE_MAKE_PROGRAM=... is always left alone, and
+# other generators (Ninja) are not affected: CMAKE_MAKE_PROGRAM is their build tool, not make.
+if(APPLE AND CMAKE_GENERATOR MATCHES "Makefiles"
+   AND (NOT CMAKE_MAKE_PROGRAM OR CMAKE_MAKE_PROGRAM STREQUAL "/usr/bin/make"))
     execute_process(COMMAND /usr/bin/xcrun --find make
         OUTPUT_VARIABLE _struckkit_active_make OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET RESULT_VARIABLE _struckkit_xcrun_result)
@@ -48,8 +50,14 @@ if(APPLE AND (NOT CMAKE_MAKE_PROGRAM OR CMAKE_MAKE_PROGRAM STREQUAL "/usr/bin/ma
     endif()
 endif()
 
-# C is needed for DPF's pugl / dgl sources (Objective-C++ on macOS, which CMake enables itself).
+# C is needed for DPF's pugl / dgl sources.
 project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
+
+if(APPLE)
+    # DPF's DistrhoUI_macOS.mm and clap-wrapper's AUv2 view are Objective-C++. Enabled here rather
+    # than left to DPF, so it is on before add_subdirectory(external/clap-wrapper) below.
+    enable_language(OBJCXX)
+endif()
 
 # Everything linked into the .clap shared module (the vendored engine, the plugin core, DPF's DGL)
 # must be position-independent. clang on Linux defaults to PIE and hides this; gcc does not
@@ -60,6 +68,8 @@ set(CMAKE_CXX_STANDARD 20)          # PM framework uses std::numbers / std::span
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(STRUCKKIT_WERROR "Treat warnings as errors (framework + tests)" OFF)
+option(STRUCKKIT_BUILD_VST3 "Build a VST3 wrapper around the same plugin via clap-wrapper" ON)
+option(STRUCKKIT_BUILD_AUV2 "Build an AUv2 (.component) wrapper via clap-wrapper (macOS only)" ${APPLE})
 option(STRUCKKIT_PRESET_DUMP "Dev-only: press 'P' in the UI to dump the patch as JSON to \$HOME" OFF)
 
 # --- uw-core (git submodule): the UMP layer StruckKit shares with StageHand, Umpire and the
@@ -206,7 +216,17 @@ endif()
 # --- the .clap output ------------------------------------------------------
 # A MODULE with no sources of its own would be rejected by CMake, and simply linking the archive is
 # not enough: nothing references clap_entry, so the linker would drop the object that defines it.
-# Hence the empty placeholder plus a whole-archive force-load.
+# Hence the empty placeholder plus a whole-archive force-load. The VST3 and AUv2 wrappers below link
+# the same way.
+function(struckkit_force_load_whole_archive TARGET_NAME LIB_NAME)
+    if(APPLE)
+        target_link_options(${TARGET_NAME} PRIVATE "-Wl,-force_load,$<TARGET_FILE:${LIB_NAME}>")
+    elseif(UNIX)
+        target_link_options(${TARGET_NAME} PRIVATE
+            "-Wl,--whole-archive" "$<TARGET_FILE:${LIB_NAME}>" "-Wl,--no-whole-archive")
+    endif()
+endfunction()
+
 set(STRUCKKIT_EMPTY_SOURCE "${CMAKE_BINARY_DIR}/generated/struckkit_empty.c")
 set(_struckkit_empty_content "typedef int struckkit_empty_translation_unit_marker;\n")
 set(_struckkit_empty_existing "")
@@ -221,8 +241,8 @@ endif()
 # bin/StruckKit.clap, so the signing and symlink steps below — and anyone's habits — are unchanged.
 add_library(StruckKit-clap MODULE "${STRUCKKIT_EMPTY_SOURCE}")
 target_link_libraries(StruckKit-clap PRIVATE struckkit_core)
+struckkit_force_load_whole_archive(StruckKit-clap struckkit_core)
 if(APPLE)
-    target_link_options(StruckKit-clap PRIVATE "-Wl,-force_load,$<TARGET_FILE:struckkit_core>")
     set_target_properties(StruckKit-clap PROPERTIES
         OUTPUT_NAME "StruckKit"
         BUNDLE TRUE
@@ -233,8 +253,6 @@ if(APPLE)
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
 else()
-    target_link_options(StruckKit-clap PRIVATE
-        "-Wl,--whole-archive" "$<TARGET_FILE:struckkit_core>" "-Wl,--no-whole-archive")
     set_target_properties(StruckKit-clap PROPERTIES
         OUTPUT_NAME "StruckKit"
         PREFIX "" SUFFIX ".clap"
@@ -280,6 +298,113 @@ add_custom_command(TARGET StruckKit-clap POST_BUILD
         "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
     COMMENT "Symlinking StruckKit.clap into ${STRUCKKIT_CLAP_DIR}"
     VERBATIM)
+
+# --- VST3 / AUv2 via the vendored clap-wrapper, wrapping the very same CLAP ---------------------
+# Purely additive: neither block touches the .clap target above. Unlike the .clap, these are not
+# installed on every build; run the install-vst3 / install-auv2 targets.
+if(STRUCKKIT_BUILD_VST3 OR STRUCKKIT_BUILD_AUV2)
+    if(NOT CLAP_SDK_ROOT)
+        set(CLAP_SDK_ROOT "${CMAKE_SOURCE_DIR}/external/clap" CACHE PATH "" FORCE)
+    endif()
+    add_subdirectory(external/clap-wrapper)
+endif()
+
+# Ad-hoc sign a wrapper bundle after each build, for the same reason as the .clap above (a
+# universal binary's linker signature fails `codesign --verify`).
+function(struckkit_adhoc_sign_bundle TARGET_NAME)
+    if(APPLE AND STRUCKKIT_CODESIGN_EXECUTABLE)
+        add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+            COMMAND "${STRUCKKIT_CODESIGN_EXECUTABLE}" --force --sign - --timestamp=none
+                "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>"
+            COMMENT "Ad-hoc signing ${TARGET_NAME}"
+            VERBATIM)
+    endif()
+endfunction()
+
+if(STRUCKKIT_BUILD_VST3)
+    if(NOT VST3_SDK_ROOT)
+        set(VST3_SDK_ROOT "${CMAKE_SOURCE_DIR}/external/vst3sdk" CACHE PATH "" FORCE)
+    endif()
+
+    add_library(StruckKit_vst3 MODULE "${STRUCKKIT_EMPTY_SOURCE}")
+    if(UNIX AND NOT APPLE)
+        # clap-wrapper's Linux branch tests a misspelled TCLP_RESOURCE_DIRECTORY, which is never
+        # set, so it always warns that RESOURCE_DIRECTORY is unsupported. Defining it empty
+        # silences that; we pass no RESOURCE_DIRECTORY.
+        set(TCLP_RESOURCE_DIRECTORY "")
+    endif()
+    target_link_libraries(StruckKit_vst3 PRIVATE struckkit_core)
+    struckkit_force_load_whole_archive(StruckKit_vst3 struckkit_core)
+    target_add_vst3_wrapper(
+        TARGET StruckKit_vst3
+        OUTPUT_NAME "StruckKit"
+        BUNDLE_IDENTIFIER "com.unlikelyware.struckkit.vst3"
+        BUNDLE_VERSION "${PROJECT_VERSION}")
+    if(TARGET base-sdk-vst3 AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        # The VST3 SDK still uses std::wstring_convert, deprecated since C++17.
+        target_compile_options(base-sdk-vst3 PRIVATE -Wno-deprecated-declarations)
+    endif()
+    struckkit_adhoc_sign_bundle(StruckKit_vst3)
+
+    if(APPLE)
+        set(STRUCKKIT_VST3_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
+        set(STRUCKKIT_VST3_ARTIFACT "$<TARGET_BUNDLE_DIR:StruckKit_vst3>")
+    else()
+        # $<TARGET_FILE> would be the .so inside the bundle; hosts want the bundle folder, which
+        # clap-wrapper builds under <build>/Release (or Debug).
+        set(STRUCKKIT_VST3_DIR "$ENV{HOME}/.vst3")
+        set(STRUCKKIT_VST3_ARTIFACT
+            "${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>/StruckKit.vst3")
+    endif()
+    add_custom_target(install-vst3
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_VST3_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${STRUCKKIT_VST3_DIR}/StruckKit.vst3"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink "${STRUCKKIT_VST3_ARTIFACT}" "${STRUCKKIT_VST3_DIR}/StruckKit.vst3"
+        DEPENDS StruckKit_vst3
+        VERBATIM
+        COMMENT "Symlinking StruckKit.vst3 into ${STRUCKKIT_VST3_DIR}")
+endif()
+
+if(STRUCKKIT_BUILD_AUV2)
+    # AUv2 is an Apple-only format, and clap-wrapper's target_add_auv2_wrapper simply does not exist
+    # off Apple platforms. Say so plainly instead of failing with an unknown-command error.
+    if(NOT APPLE)
+        message(FATAL_ERROR
+            "STRUCKKIT_BUILD_AUV2 is macOS-only (AUv2 is an Apple plugin format). "
+            "Reconfigure with -DSTRUCKKIT_BUILD_AUV2=OFF.")
+    endif()
+    # clap-wrapper fetches Apple's AudioUnitSDK itself (CPM) unless pointed at a local copy with
+    # -DAUDIOUNIT_SDK_ROOT=...
+    if(NOT AUDIOUNIT_SDK_ROOT)
+        set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES ON)
+    endif()
+
+    add_library(StruckKit_auv2 MODULE "${STRUCKKIT_EMPTY_SOURCE}")
+    target_link_libraries(StruckKit_auv2 PRIVATE struckkit_core)
+    struckkit_force_load_whole_archive(StruckKit_auv2 struckkit_core)
+    # "StKt" (StruckKit) as the subtype, under Unlikelyware's own "nLKL" manufacturer code.
+    target_add_auv2_wrapper(
+        TARGET StruckKit_auv2
+        OUTPUT_NAME "StruckKit"
+        BUNDLE_IDENTIFIER "com.unlikelyware.struckkit.auv2"
+        BUNDLE_VERSION "${PROJECT_VERSION}"
+        MANUFACTURER_NAME "Unlikelyware"
+        MANUFACTURER_CODE "nLKL"
+        SUBTYPE_CODE "StKt"
+        INSTRUMENT_TYPE "aumu")
+    struckkit_adhoc_sign_bundle(StruckKit_auv2)
+
+    # Copied, not symlinked: AU hosts don't reliably find a symlinked component.
+    set(STRUCKKIT_AUV2_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/Components")
+    add_custom_target(install-auv2
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_AUV2_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${STRUCKKIT_AUV2_DIR}/StruckKit.component"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "$<TARGET_BUNDLE_DIR:StruckKit_auv2>" "${STRUCKKIT_AUV2_DIR}/StruckKit.component"
+        DEPENDS StruckKit_auv2
+        VERBATIM
+        COMMENT "Copying StruckKit.component into ${STRUCKKIT_AUV2_DIR}")
+endif()
 
 # --- self-tests (the framework; headless, no DAW) --------------------------
 add_executable(pm-selftest test/pm_selftest.cpp)

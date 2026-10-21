@@ -119,17 +119,23 @@ sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev
 ```
 
 **macOS:** the Xcode Command Line Tools (`xcode-select --install`; clang, the SDK's Cocoa and
-OpenGL frameworks, and Python 3) plus CMake ≥ 3.17 (`brew install cmake`). Nothing else: the UI uses
+OpenGL frameworks, and Python 3) plus CMake ≥ 3.21 and Ninja (`brew install cmake ninja`). Nothing else: the UI uses
 the system frameworks.
 
 Then, on either:
 
 ```sh
-git clone --recurse-submodules https://github.com/erickampman/StruckKit.git
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+git clone https://github.com/erickampman/StruckKit.git && cd StruckKit
+tools/fetch_deps.sh                            # submodules at their pins + patches/
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C build
 ctest --test-dir build --output-on-failure     # see TESTING.md for the full suite
+ninja -C build install-vst3 install-auv2       # optional; install-auv2 is macOS-only
 ```
+
+`tools/fetch_deps.sh` rather than `--recurse-submodules`: it fetches only the four VST3 SDK
+submodules the build needs, and applies the clap-wrapper patch in `patches/` (the AUv2 view never
+calls `gui->show()` without it, so the window stays blank).
 
 uw-core is a private repo: cloning needs access to `erickampman/uw-core`, and CI needs the
 `SUBMODULES_TOKEN` secret (as StageHand's). A change StruckKit needs from uw-core is pushed there
@@ -141,16 +147,26 @@ Produces `build/bin/StruckKit.clap`. A post-build step symlinks it into `~/.clap
 rescan. Validate with [`clap-validator`](https://github.com/free-audio/clap-validator). Test
 details in [TESTING.md](TESTING.md).
 
+The same plugin is also wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper) as a
+VST3 (`build/StruckKit.vst3` on macOS, `build/Release/StruckKit.vst3` on Linux) and, on macOS, an
+AUv2 instrument (`build/StruckKit.component`, `aumu StKt nLKL`; check with
+`auval -v aumu StKt nLKL`). These are not installed on every build: `install-vst3` symlinks the
+VST3 into `~/Library/Audio/Plug-Ins/VST3` or `~/.vst3`, and `install-auv2` copies the component
+into `~/Library/Audio/Plug-Ins/Components` (AU hosts don't reliably follow symlinks). The first
+configure with AUv2 on downloads Apple's AudioUnitSDK (`-DAUDIOUNIT_SDK_ROOT=...` to use a local
+copy).
+
 Configure options: `-DSTRUCKKIT_WERROR=ON` (warnings as errors), `-DSTRUCKKIT_PRESET_DUMP=ON`
-(dev-only DUMP button that writes the current patch as JSON to `$HOME`).
+(dev-only DUMP button that writes the current patch as JSON to `$HOME`), `-DSTRUCKKIT_BUILD_VST3=OFF`
+and `-DSTRUCKKIT_BUILD_AUV2=OFF` (on by default; AUv2 only exists on macOS).
 
 macOS options: the build targets macOS 15.0 and later (`-DCMAKE_OSX_DEPLOYMENT_TARGET=...` to
 change it) and, by default, only the machine's own architecture. `-DSTRUCKKIT_MACOS_UNIVERSAL=ON`
 builds one universal bundle for Apple Silicon and Intel; switching it on an existing build directory
-needs a fresh one (`rm -rf build`). The bundle is ad-hoc signed after linking, which is all a local
+needs a fresh one (`rm -rf build`). The bundles are ad-hoc signed after linking, which is all a local
 build needs; giving it to other people needs a Developer ID signature and notarization (not set up
 here). An Xcode selected from a path containing a space (say `/Applications/Xcode 26.3.app`) cannot
-be driven by GNU Make's recursive rules, so configure falls back to the Command Line Tools' make and
+be driven by GNU Make's recursive rules, so a Makefile configure falls back to the Command Line Tools' make and
 says so; `sudo xcode-select -s /Applications/Xcode.app` removes the need for that.
 
 ## License
