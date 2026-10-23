@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}   # uw-core is private
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}   # uw-core, dpf and pugl are private
       - name: Install DPF UI deps (Linux)
         if: runner.os == 'Linux'
         run: |

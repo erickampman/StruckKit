@@ -166,6 +166,9 @@ add_subdirectory(dpf)
 # dgl-opengl is normally created by dpf_add_plugin()'s UI_TYPE branch; call the same helper
 # directly. SHARED_RESOURCES=TRUE embeds DGL's DejaVu font (fontFace(NANOVG_DEJAVU_SANS_TTF)).
 dpf__add_dgl_opengl(TRUE FALSE FALSE)
+# StruckKit's own namespace (UmpireDAW's docs/decisions.md, "DPF fork"): on macOS pugl names its
+# Objective-C classes after it, so two DPF binaries with the same one in a host collide.
+target_compile_definitions(dgl-opengl PUBLIC DGL_NAMESPACE=StruckKitDGL)
 # DGL is vendored, so its warnings are not ours to fix: gcc's "<cstdbool> is deprecated" #warning
 # from pugl.hpp under C++17+, and a stringop-overflow false positive in nanovg's stb_image.h.
 target_compile_options(dgl-opengl PRIVATE -w)
