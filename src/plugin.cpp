@@ -686,15 +686,15 @@ bool state_load(const clap_plugin_t* plugin, const clap_istream_t* stream) {
     const std::string header = text.substr(0, firstBreak == std::string::npos ? text.size() : firstBreak);
     if (header.rfind("StruckKit", 0) != 0) {
         if (!stateLoadDpfParameters(p, text)) return false;
-        applyAllParams(p);
         notifyHostValuesChanged(p);
         requestMainThread(p);
         return true;
     }
 
-    // Store everything first, then apply once, so even a truncated file leaves the engine
-    // consistent rather than half-updated.
-    bool any = false;
+    // Only store the values here. state_load runs on the main thread, and applying them would
+    // rewire the voice graph under a running process(). If the plugin is active,
+    // applyPendingParams() picks them up at the top of the next block; if not, activate() applies
+    // everything.
     size_t pos = firstBreak == std::string::npos ? text.size() : firstBreak + 1;
     while (pos < text.size()) {
         size_t lineEnd = text.find('\n', pos);
@@ -707,10 +707,8 @@ bool state_load(const clap_plugin_t* plugin, const clap_istream_t* stream) {
         const int index = paramIndexForSymbol(line.substr(0, space).c_str());
         if (index < 0) continue;                       // unknown symbol: ignore, stay compatible
         storeParam(p, uint32_t(index), std::strtod(line.c_str() + space + 1, nullptr));
-        any = true;
     }
 
-    if (any) applyAllParams(p);
     notifyHostValuesChanged(p);
     requestMainThread(p);
     return true;
