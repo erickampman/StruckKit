@@ -1,14 +1,10 @@
 cmake_minimum_required(VERSION 3.21)   # clap-wrapper needs 3.21
 
-# --- macOS: target OS and architectures (must be set before project()) ------
-# Without a deployment target the binary targets whatever macOS it was built on and may refuse to
-# load on older systems. StruckKit supports macOS 15 and later. Both are cache vars, so -D
+# --- macOS: target OS and architecture (must be set before project()) -------
+# macOS 26 or later, Apple Silicon only. Both are cache variables, so -D
 # overrides them.
-set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version")
-option(STRUCKKIT_MACOS_UNIVERSAL "macOS: build one universal binary (arm64 + x86_64)" OFF)
-if(STRUCKKIT_MACOS_UNIVERSAL)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
-endif()
+set(CMAKE_OSX_DEPLOYMENT_TARGET 26.0 CACHE STRING "macOS 26 or later")
+set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "Apple Silicon only")
 
 # --- macOS: the make that recursive rules use must not live under a path with a space ---
 # CMake's Unix Makefiles generator drives recursive make through $(MAKE), and GNU Make 3.81
@@ -51,7 +47,7 @@ if(APPLE AND CMAKE_GENERATOR MATCHES "Makefiles"
 endif()
 
 # C is needed for DPF's pugl / dgl sources.
-project(StruckKit VERSION 0.3.0 LANGUAGES C CXX)
+project(StruckKit VERSION 0.9.0 LANGUAGES C CXX)
 
 if(APPLE)
     # DPF's DistrhoUI_macOS.mm and clap-wrapper's AUv2 view are Objective-C++. Enabled here rather
@@ -263,11 +259,9 @@ else()
 endif()
 
 # --- macOS: ad-hoc sign the .clap bundle ----------------------------------
-# ld ad-hoc signs the Mach-O it writes, but only usefully for a thin output: for the universal
-# (arm64 + x86_64) binary that STRUCKKIT_MACOS_UNIVERSAL produces, `codesign --verify` rejects the
-# linker's signature with "code object is not signed at all" — so the bundle fails the signature
-# check even though it still loads. Signing the bundle explicitly yields a signature codesign
-# accepts (and one that seals Info.plist, which the linker's does not). Still ad-hoc: fine for a
+# ld ad-hoc signs the Mach-O it writes but not the bundle: that signature doesn't seal Info.plist,
+# and `codesign --verify` on the bundle rejects it. Signing the bundle explicitly yields a signature
+# codesign accepts. Still ad-hoc: fine for a
 # local build and for loading here; handing the plugin to other people needs a Developer ID
 # signature plus notarization, which is not set up. Must run before the symlink below so the link
 # never points at an unsigned bundle.
@@ -281,7 +275,7 @@ if(APPLE)
             VERBATIM)
     else()
         message(WARNING "codesign not found: StruckKit.clap stays linker-signed, which a "
-                        "universal build's signature check rejects")
+                        "`codesign --verify` rejects for the bundle")
     endif()
 endif()
 
@@ -312,8 +306,7 @@ if(STRUCKKIT_BUILD_VST3 OR STRUCKKIT_BUILD_AUV2)
     add_subdirectory(external/clap-wrapper)
 endif()
 
-# Ad-hoc sign a wrapper bundle after each build, for the same reason as the .clap above (a
-# universal binary's linker signature fails `codesign --verify`).
+# Ad-hoc sign a wrapper bundle after each build, for the same reason as the .clap above.
 function(struckkit_adhoc_sign_bundle TARGET_NAME)
     if(APPLE AND STRUCKKIT_CODESIGN_EXECUTABLE)
         add_custom_command(TARGET ${TARGET_NAME} POST_BUILD

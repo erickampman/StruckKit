@@ -160,10 +160,7 @@ Configure options: `-DSTRUCKKIT_WERROR=ON` (warnings as errors), `-DSTRUCKKIT_PR
 (dev-only DUMP button that writes the current patch as JSON to `$HOME`), `-DSTRUCKKIT_BUILD_VST3=OFF`
 and `-DSTRUCKKIT_BUILD_AUV2=OFF` (on by default; AUv2 only exists on macOS).
 
-macOS options: the build targets macOS 15.0 and later (`-DCMAKE_OSX_DEPLOYMENT_TARGET=...` to
-change it) and, by default, only the machine's own architecture. `-DSTRUCKKIT_MACOS_UNIVERSAL=ON`
-builds one universal bundle for Apple Silicon and Intel; switching it on an existing build directory
-needs a fresh one (`rm -rf build`). The bundles are ad-hoc signed after linking, which is all a local
+macOS: the build targets macOS 26 or later on Apple Silicon only. The bundles are ad-hoc signed after linking, which is all a local
 build needs; giving it to other people needs a Developer ID signature and notarization (not set up
 here). An Xcode selected from a path containing a space (say `/Applications/Xcode 26.3.app`) cannot
 be driven by GNU Make's recursive rules, so a Makefile configure falls back to the Command Line Tools' make and
