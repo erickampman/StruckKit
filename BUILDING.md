@@ -152,6 +152,6 @@ commands under "Build and test", and for a plugin `cmake --build build --target 
 same package list, the same `build/` folder, the same option names (`<PROJECT>_BUILD_VST3`,
 `<PROJECT>_UW_CORE_DIR` and so on). What's different here, and why:
 
-- One of the five synths (PlainOldSynth, StruckSynth, StruckKit, IFSynth, ModicumFM), which share the PolygraphModular framework, vendored, and DPF for the UI. `tools/fetch_deps.sh` also applies `patches/` to clap-wrapper (its AUv2 view), so `external/clap-wrapper` shows a local change: that is the patch, not uncommitted work.
+- One of the six synths (PlainOldSynth, StruckSynth, StruckRoom, StruckKit, IFSynth, ModicumFM), which share the PolygraphModular framework, vendored, and DPF for the UI. `tools/fetch_deps.sh` also applies `patches/` to clap-wrapper (its AUv2 view), so `external/clap-wrapper` shows a local change: that is the patch, not uncommitted work.
 - The only synth that uses uw-core (for UMP parsing), so it has `external/uw-core` and `STRUCKKIT_UW_CORE_DIR`.
 - Its CMake target is `StruckKit-clap` (from its DPF days); the plugin is `build/StruckKit.clap` like the others' (until 2026-10-25 it was `build/bin/StruckKit.clap`: run `install-clap` again after updating).
