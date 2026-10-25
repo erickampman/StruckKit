@@ -279,26 +279,29 @@ if(APPLE)
     endif()
 endif()
 
-# --- install: symlink the built .clap into the user CLAP dir ---------------
-# Runs automatically after StruckKit-clap is (re)built, so the plugin in the
-# user CLAP dir is always a symlink pointing at the freshest build.
-# create_symlink replaces any existing file or link, so this is idempotent.
+# --- install-clap: symlink the built .clap into the user CLAP dir ----------
+# Only when asked (`cmake --build build --target install-clap`): an ordinary
+# build never writes outside build/ (ReleaseUMP R1-36). The link points at the
+# freshest build after a rescan. rm -rf first: create_symlink cannot replace a
+# real bundle directory.
 if(APPLE)
     set(STRUCKKIT_CLAP_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
 else()
     set(STRUCKKIT_CLAP_DIR "$ENV{HOME}/.clap")
 endif()
-add_custom_command(TARGET StruckKit-clap POST_BUILD
+add_custom_target(install-clap
     COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_CLAP_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
     COMMAND ${CMAKE_COMMAND} -E create_symlink
         "${CMAKE_BINARY_DIR}/bin/StruckKit.clap"
         "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
+    DEPENDS StruckKit-clap
     COMMENT "Symlinking StruckKit.clap into ${STRUCKKIT_CLAP_DIR}"
     VERBATIM)
 
 # --- VST3 / AUv2 via the vendored clap-wrapper, wrapping the very same CLAP ---------------------
-# Purely additive: neither block touches the .clap target above. Unlike the .clap, these are not
-# installed on every build; run the install-vst3 / install-auv2 targets.
+# Purely additive: neither block touches the .clap target above. Like the .clap, these are
+# installed only by their targets, install-vst3 / install-auv2.
 if(STRUCKKIT_BUILD_VST3 OR STRUCKKIT_BUILD_AUV2)
     if(NOT CLAP_SDK_ROOT)
         set(CLAP_SDK_ROOT "${CMAKE_SOURCE_DIR}/external/clap" CACHE PATH "" FORCE)
