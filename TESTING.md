@@ -5,23 +5,13 @@ validator. Everything runs headless on Linux/macOS — no DAW or audio device re
 
 ## Prerequisites
 
-- CMake ≥ 3.17 and a C++20 compiler (gcc or clang).
-- Submodules (uw-core's UMP layer; DPF + pugl for the plugin build):
-
-  ```sh
-  git submodule update --init --recursive
-  ```
-
-- To build the plugin itself (DPF's OpenGL/NanoVG UI), the X11 + GL dev packages:
-
-  ```sh
-  sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev
-  ```
+Everything [BUILDING.md](BUILDING.md) lists: the tools and libraries to install, and
+`tools/fetch_deps.sh` for the submodules.
 
 ## Build and run all tests
 
 ```sh
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```

@@ -67,104 +67,18 @@ DPF's own generated CLAP wrapper mis-sized the editor (aspect-ratio lock forced 
 resizes, a plugin-initiated resize on open, and a stale Retina scale on macOS), which is why it
 is no longer used.
 
-## Layout
+## Building from source
 
-The engine (`src/`) mirrors PolygraphModular's structure; the CLAP plugin is `src/plugin.cpp`,
-with its GUI shell in `src/UI/`:
-
-```
-plugin/               DistrhoPluginInfo.h (DPF's UI flags; its plugin-identity macros are inert),
-                        StruckKitParams.h (the param table shared by DSP and UI)
-src/plugin.cpp        the CLAP plugin: entry, params, state, MIDI → VoiceManager, voice-info
-src/plugin_gui.h      the C seam between plugin.cpp and the GUI shell
-src/UI/               the plugin GUI (reusable NanoVG widgets + the panel)
-                        Knob, Slider, Toggle, Dropdown, PopupMenu, TabBar, GroupBox, TitleText,
-                        Logo; PresetKeys / PresetDump (preset menu + dev-only JSON dumper);
-                        StruckKitUI.cpp — the kit map + one knob panel per drum family, and
-                        the CLAP gui extension (BackingScale_mac.mm: live Retina scale)
-src/Common/           shim + MIDI + params + utilities
-                        pm_compat.h (Apple→portable), pm_midi.* (decoded UMP over uw::ump +
-                        MIDI-1 decode), pm_params.h / pm_param_data.* / pm_addresses.h,
-                        ParamAddressMacros.h, CPPTypes.hpp, CPPProcs.hpp, KPBuffPairHelper.hpp
-src/Module/           Module core + modules
-                        DrumKitModule.* (the kit) + ChokeGroupState / ModuleSharedState
-                        (cross-voice state); the physics: MembraneModes, SnareWires, PlateModes
-                        (+ generated PlateModesTable), Cymbal, ResonatorBank, ModalBank; Final.
-                        StrikeModule / ModalBankModule and the IFS / Sine / ADSR / LPF / CVMixer /
-                        Level / Combine modules inherited via StruckSynth stay instantiated but
-                        unconnected
-src/Voice/            voice engine
-                        Voice.*, VoiceStateManager.*, VoiceManager.*, ModuleMap.*, ModuleGraph.hpp,
-                        ModuleInitSpecs.hpp, pm_module_specs.cpp, ConnectionCommandQueue.hpp
-Presets/              factory presets (JSON), compiled into GeneratedPresets.h by
-                        tools/gen_presets.py
-Resources/            font + logo, embedded into the binary at build time
-test/                 in-process self-tests (see TESTING.md)
-dpf/                  DISTRHO Plugin Framework (submodule, + nested pugl) — the GUI layer only
-external/clap         the CLAP SDK headers (submodule, 1.2.9)
-external/uw-core      uw-core (private submodule): uw::ump, the UMP layer shared with StageHand,
-                        Umpire and the other plugins; built UMP-only (UW_CORE_UMP_ONLY)
+```bash
+git clone https://github.com/erickampman/StruckKit.git
+cd StruckKit
+tools/fetch_deps.sh
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-Vendored PolygraphModular files keep their original `#include "X.hpp"` form; every framework
-folder is on the include path so they resolve across `Common/` `Module/` `Voice/`. The
-plugin links the `pm_framework` static lib.
-
-## Build
-
-**Linux:** DPF's OpenGL/NanoVG UI needs the usual X11 + GL dev packages:
-
-```sh
-sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev
-```
-
-**macOS:** the Xcode Command Line Tools (`xcode-select --install`; clang, the SDK's Cocoa and
-OpenGL frameworks, and Python 3) plus CMake ≥ 3.21 and Ninja (`brew install cmake ninja`). Nothing else: the UI uses
-the system frameworks.
-
-Then, on either:
-
-```sh
-git clone https://github.com/erickampman/StruckKit.git && cd StruckKit
-tools/fetch_deps.sh                            # submodules at their pins + patches/
-cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
-ninja -C build
-ctest --test-dir build --output-on-failure     # see TESTING.md for the full suite
-ninja -C build install-vst3 install-auv2       # optional; install-auv2 is macOS-only
-```
-
-`tools/fetch_deps.sh` rather than `--recurse-submodules`: it fetches only the four VST3 SDK
-submodules the build needs, and applies the clap-wrapper patch in `patches/` (the AUv2 view never
-calls `gui->show()` without it, so the window stays blank).
-
-uw-core is a private repo: cloning needs access to `erickampman/uw-core`, and CI needs the
-`SUBMODULES_TOKEN` secret (as StageHand's). A change StruckKit needs from uw-core is pushed there
-first, then the pin (`external/uw-core`) is moved here; `git config push.recurseSubmodules check`
-makes git refuse a pin uw-core's remote doesn't have yet.
-
-Produces `build/bin/StruckKit.clap`. A post-build step symlinks it into `~/.clap` (Linux) or
-`~/Library/Audio/Plug-Ins/CLAP/` (macOS), so any CLAP host picks up the freshest build after a
-rescan. Validate with [`clap-validator`](https://github.com/free-audio/clap-validator). Test
-details in [TESTING.md](TESTING.md).
-
-The same plugin is also wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper) as a
-VST3 (`build/StruckKit.vst3` on macOS, `build/Release/StruckKit.vst3` on Linux) and, on macOS, an
-AUv2 instrument (`build/StruckKit.component`, `aumu StKt nLKL`; check with
-`auval -v aumu StKt nLKL`). These are not installed on every build: `install-vst3` symlinks the
-VST3 into `~/Library/Audio/Plug-Ins/VST3` or `~/.vst3`, and `install-auv2` copies the component
-into `~/Library/Audio/Plug-Ins/Components` (AU hosts don't reliably follow symlinks). The first
-configure with AUv2 on downloads Apple's AudioUnitSDK (`-DAUDIOUNIT_SDK_ROOT=...` to use a local
-copy).
-
-Configure options: `-DSTRUCKKIT_WERROR=ON` (warnings as errors), `-DSTRUCKKIT_PRESET_DUMP=ON`
-(dev-only DUMP button that writes the current patch as JSON to `$HOME`), `-DSTRUCKKIT_BUILD_VST3=OFF`
-and `-DSTRUCKKIT_BUILD_AUV2=OFF` (on by default; AUv2 only exists on macOS).
-
-macOS: the build targets macOS 26 or later on Apple Silicon only. The bundles are ad-hoc signed after linking, which is all a local
-build needs; giving it to other people needs a Developer ID signature and notarization (not set up
-here). An Xcode selected from a path containing a space (say `/Applications/Xcode 26.3.app`) cannot
-be driven by GNU Make's recursive rules, so a Makefile configure falls back to the Command Line Tools' make and
-says so; `sudo xcode-select -s /Applications/Xcode.app` removes the need for that.
+[BUILDING.md](BUILDING.md) has what to install first on Linux and macOS, the tests, installing
+the plugin for hosts, and the build options.
 
 ## License
 

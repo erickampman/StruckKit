@@ -3,7 +3,8 @@
 # Initialise every dependency submodule StruckKit needs, at the pinned
 # commits recorded in .gitmodules, then apply the local dependency patches.
 #
-# Run this once after a fresh `git clone`.
+# Run this once after a fresh `git clone`, and again after a `git pull` that
+# moves, adds or re-points a submodule.
 #
 # Note on vst3sdk: it declares seven nested submodules (base, cmake,
 # pluginterfaces, public.sdk, doc, tutorials, vstgui4). Only the first four are
@@ -13,6 +14,9 @@
 #
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+echo "==> Submodule URLs (after a pull that changed one)"
+git submodule sync --recursive
 
 echo "==> Top-level submodules"
 git submodule update --init dpf external/clap external/uw-core external/clap-wrapper external/vst3sdk
@@ -27,4 +31,4 @@ git -C external/vst3sdk submodule update --init --recursive \
 echo "==> Dependency patches"
 tools/apply_dep_patches.sh
 
-echo "==> Done. Configure with: cmake -B build -G Ninja -S . -DCMAKE_BUILD_TYPE=Release"
+echo "==> Done. Configure with: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release"
