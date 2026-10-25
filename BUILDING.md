@@ -60,7 +60,7 @@ The same three commands on both platforms. Everything goes in `build/` (ignored 
 
 The full test suite is described in [TESTING.md](TESTING.md).
 
-This produces `build/bin/StruckKit.clap`, `build/StruckKit.vst3` (on Linux
+This produces `build/StruckKit.clap`, `build/StruckKit.vst3` (on Linux
 `build/Release/StruckKit.vst3`) and, on macOS, `build/StruckKit.component` (AUv2 instrument,
 `aumu StKt nLKL`). On macOS the bundles are ad-hoc signed after linking, which is all a local build
 needs.
@@ -93,7 +93,7 @@ To keep the plugin without the clone, copy it instead (the `rm` clears a link th
 # Linux
 mkdir -p ~/.clap ~/.vst3
 rm -rf ~/.clap/StruckKit.clap ~/.vst3/StruckKit.vst3
-cp build/bin/StruckKit.clap ~/.clap/
+cp build/StruckKit.clap ~/.clap/
 cp -R build/Release/StruckKit.vst3 ~/.vst3/
 ```
 
@@ -101,7 +101,7 @@ cp -R build/Release/StruckKit.vst3 ~/.vst3/
 # macOS
 mkdir -p ~/Library/Audio/Plug-Ins/CLAP ~/Library/Audio/Plug-Ins/VST3
 rm -rf ~/Library/Audio/Plug-Ins/CLAP/StruckKit.clap ~/Library/Audio/Plug-Ins/VST3/StruckKit.vst3
-cp -R build/bin/StruckKit.clap ~/Library/Audio/Plug-Ins/CLAP/
+cp -R build/StruckKit.clap ~/Library/Audio/Plug-Ins/CLAP/
 cp -R build/StruckKit.vst3 ~/Library/Audio/Plug-Ins/VST3/
 ```
 
@@ -112,17 +112,20 @@ built yourself has no quarantine flag, so macOS loads it without the steps a dow
 
 ## Options
 
-- `-DSTRUCKKIT_BUILD_VST3=OFF`, `-DSTRUCKKIT_BUILD_AUV2=OFF`: skip a format (both on by default;
-  AUv2 exists only on macOS). The first configure with AUv2 on downloads Apple's AudioUnitSDK;
-  `-DAUDIOUNIT_SDK_ROOT=...` uses a local copy.
-- `-DSTRUCKKIT_WERROR=ON`: warnings as errors.
-- `-DSTRUCKKIT_PRESET_DUMP=ON`: a dev-only DUMP button that writes the current patch as JSON to
-  `$HOME`.
+Pass these to the first command (`cmake -B build ... -DNAME=VALUE`).
+
+| Option | Default | Effect |
+|---|---|---|
+| `STRUCKKIT_BUILD_VST3` | `ON` | Build `StruckKit.vst3` through clap-wrapper (with the vendored `external/vst3sdk`). |
+| `STRUCKKIT_BUILD_AUV2` | `ON` on macOS, `OFF` elsewhere | Build `StruckKit.component` through clap-wrapper. **macOS only**. The first configure downloads Apple's AudioUnitSDK; `-DAUDIOUNIT_SDK_ROOT=...` uses a local copy. |
+| `STRUCKKIT_WERROR` | `OFF` | Warnings as errors (CI turns it on). |
+| `STRUCKKIT_PRESET_DUMP` | `OFF` | A dev-only DUMP button that writes the current patch as JSON to `$HOME`. |
+| `STRUCKKIT_UW_CORE_DIR` | `external/uw-core` | Build against another uw-core clone (below). |
 
 ## Checking a build
 
 Validate the CLAP with [clap-validator](https://github.com/free-audio/clap-validator)
-(`clap-validator validate build/bin/StruckKit.clap`), and the AU with `auval -v aumu StKt nLKL`.
+(`clap-validator validate build/StruckKit.clap`), and the AU with `auval -v aumu StKt nLKL`.
 
 An Xcode selected from a path with a space in it (say `/Applications/Xcode 26.3.app`) can't drive
 GNU Make's recursive rules. Use Ninja, as above; with a Makefile configure the build falls back to
@@ -130,3 +133,25 @@ the Command Line Tools' make and says so.
 
 If CMake's cache is stale (for example after a submodule is added or removed), delete `build/` and
 configure again.
+
+## Building against a local uw-core
+
+To try a uw-core change that isn't pushed and pinned yet, point the build at another clone:
+
+```bash
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_UW_CORE_DIR=$HOME/Dev-Common/uw-core
+```
+
+When the change is ready, push uw-core first, then move StruckKit's submodule pin
+(uw-core's README, "Pushing: uw-core first").
+
+## How this differs from the other projects
+
+Every Unlikelyware project builds the same way: `git clone`, `tools/fetch_deps.sh`, the three
+commands under "Build and test", and for a plugin `cmake --build build --target install-clap`. The
+same package list, the same `build/` folder, the same option names (`<PROJECT>_BUILD_VST3`,
+`<PROJECT>_UW_CORE_DIR` and so on). What's different here, and why:
+
+- One of the five synths (PlainOldSynth, StruckSynth, StruckKit, IFSynth, ModicumFM), which share the PolygraphModular framework, vendored, and DPF for the UI. `tools/fetch_deps.sh` also applies `patches/` to clap-wrapper (its AUv2 view), so `external/clap-wrapper` shows a local change: that is the patch, not uncommitted work.
+- The only synth that uses uw-core (for UMP parsing), so it has `external/uw-core` and `STRUCKKIT_UW_CORE_DIR`.
+- Its CMake target is `StruckKit-clap` (from its DPF days); the plugin is `build/StruckKit.clap` like the others' (until 2026-10-25 it was `build/bin/StruckKit.clap`: run `install-clap` again after updating).

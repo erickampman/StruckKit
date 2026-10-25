@@ -73,7 +73,10 @@ option(STRUCKKIT_PRESET_DUMP "Dev-only: press 'P' in the UI to dump the patch as
 # position-independent with hidden symbols, so it links into the .clap safely.
 set(UW_CORE_UMP_ONLY ON CACHE BOOL "" FORCE)
 set(UW_CORE_TESTS OFF CACHE BOOL "" FORCE)
-add_subdirectory(external/uw-core)
+# STRUCKKIT_UW_CORE_DIR points at another uw-core clone (e.g. ../uw-core) to build
+# against a change that isn't pushed and pinned yet.
+set(STRUCKKIT_UW_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/uw-core" CACHE PATH "uw-core source")
+add_subdirectory(${STRUCKKIT_UW_CORE_DIR} uw-core)
 
 # --- PM framework port -----------------------------------------------------
 # Vendored PolygraphModular framework + our shim/MIDI layer (over uw::ump), as a static lib.
@@ -236,8 +239,8 @@ if(NOT _struckkit_empty_existing STREQUAL _struckkit_empty_content)
     file(WRITE "${STRUCKKIT_EMPTY_SOURCE}" "${_struckkit_empty_content}")
 endif()
 
-# The target keeps the name the DPF build gave it (StruckKit-clap), and the output stays at
-# bin/StruckKit.clap, so the signing and symlink steps below — and anyone's habits — are unchanged.
+# The target keeps the name the DPF build gave it (StruckKit-clap). The output is build/StruckKit.clap,
+# where every other Unlikelyware plugin puts its .clap (ReleaseUMP R1-37).
 add_library(StruckKit-clap MODULE "${STRUCKKIT_EMPTY_SOURCE}")
 target_link_libraries(StruckKit-clap PRIVATE struckkit_core)
 struckkit_force_load_whole_archive(StruckKit-clap struckkit_core)
@@ -246,7 +249,6 @@ if(APPLE)
         OUTPUT_NAME "StruckKit"
         BUNDLE TRUE
         BUNDLE_EXTENSION "clap"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.unlikelyware.struckkit"
         MACOSX_BUNDLE_BUNDLE_NAME "StruckKit"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
@@ -254,8 +256,7 @@ if(APPLE)
 else()
     set_target_properties(StruckKit-clap PROPERTIES
         OUTPUT_NAME "StruckKit"
-        PREFIX "" SUFFIX ".clap"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+        PREFIX "" SUFFIX ".clap")
 endif()
 
 # --- macOS: ad-hoc sign the .clap bundle ----------------------------------
@@ -270,7 +271,7 @@ if(APPLE)
     if(STRUCKKIT_CODESIGN_EXECUTABLE)
         add_custom_command(TARGET StruckKit-clap POST_BUILD
             COMMAND "${STRUCKKIT_CODESIGN_EXECUTABLE}" --force --sign - --timestamp=none
-                "${CMAKE_BINARY_DIR}/bin/StruckKit.clap"
+                "${CMAKE_BINARY_DIR}/StruckKit.clap"
             COMMENT "Ad-hoc signing StruckKit.clap"
             VERBATIM)
     else()
@@ -293,7 +294,7 @@ add_custom_target(install-clap
     COMMAND ${CMAKE_COMMAND} -E make_directory "${STRUCKKIT_CLAP_DIR}"
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
     COMMAND ${CMAKE_COMMAND} -E create_symlink
-        "${CMAKE_BINARY_DIR}/bin/StruckKit.clap"
+        "${CMAKE_BINARY_DIR}/StruckKit.clap"
         "${STRUCKKIT_CLAP_DIR}/StruckKit.clap"
     DEPENDS StruckKit-clap
     COMMENT "Symlinking StruckKit.clap into ${STRUCKKIT_CLAP_DIR}"

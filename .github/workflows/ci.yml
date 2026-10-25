@@ -27,8 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
           token: ${{ secrets.SUBMODULES_TOKEN || github.token }}   # uw-core, dpf and pugl are private
+      # fetch_deps.sh's own `git submodule` clones don't get checkout's token, so hand it to git
+      # for the private repos (uw-core, dpf and its pugl).
+      - name: Credentials for the private submodules
+        env:
+          SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${SUBMODULES_TOKEN}@github.com/erickampman/".insteadOf \
+            "https://github.com/erickampman/"
+      # Pinned submodules, only the four vst3sdk submodules the build needs, then patches/.
+      - name: Fetch pinned dependency submodules
+        run: tools/fetch_deps.sh
       - name: Install DPF UI deps (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -42,19 +52,23 @@ jobs:
             libxfixes-dev libxi-dev libxss-dev libxtst-dev libwayland-dev wayland-protocols \
             libegl1-mesa-dev libgles2-mesa-dev libdrm-dev libgbm-dev libdecor-0-dev libudev-dev \
             libdbus-1-dev libibus-1.0-dev
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      # The documented steps (BUILDING.md), plus warnings as errors.
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_WERROR=ON
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_WERROR=ON
       - name: Build
-        run: cmake --build build -j
+        run: cmake --build build
       - name: Check the macOS bundle (arm64, macOS 26 minimum)
         if: runner.os == 'macOS'
         run: |
-          bin=build/bin/StruckKit.clap/Contents/MacOS/StruckKit
+          bin=build/StruckKit.clap/Contents/MacOS/StruckKit
           lipo -archs "$bin"
           test "$(lipo -archs "$bin")" = "arm64"
           minos=$(vtool -show-build "$bin" | awk '/minos/ {print $2}')
           echo "minos $minos"
           test "$minos" = "26.0"
-          codesign --verify --verbose "build/bin/StruckKit.clap" || codesign --verify --verbose "$bin"
+          codesign --verify --verbose "build/StruckKit.clap" || codesign --verify --verbose "$bin"
       - name: Test (framework self-tests via ctest)
         run: ctest --test-dir build --output-on-failure --timeout 30
