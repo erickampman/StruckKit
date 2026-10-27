@@ -121,8 +121,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 endif()
 
 # --- presets: Presets/*.json compiled in as a C++ array, not loaded at runtime -------------
-# Avoids any runtime JSON parser in the plugin and doesn't depend on CLAP's own preset-discovery
-# extension — the UI presents its own dropdown. Adding/removing a preset file requires
+# Factory presets need no file on disk and don't depend on CLAP's own preset-discovery extension —
+# the UI presents its own dropdown. (The UI's Save / Load reads and writes the same JSON for the
+# user's own patches: src/UI/PresetFile.hpp.) Adding/removing a preset file requires
 # reconfiguring (CONFIGURE_DEPENDS re-globs on build, but a brand new file still needs `cmake -B
 # build -S .` rerun once to pick up the new match).
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -163,8 +164,9 @@ add_custom_target(generate_resources DEPENDS "${STRUCKKIT_RESOURCES_HPP}" "${STR
 # CLAP wrapper mis-sizes the editor — see that file's header. Same layout as StruckSynth.
 add_subdirectory(dpf)
 # dgl-opengl is normally created by dpf_add_plugin()'s UI_TYPE branch; call the same helper
-# directly. SHARED_RESOURCES=TRUE embeds DGL's DejaVu font (fontFace(NANOVG_DEJAVU_SANS_TTF)).
-dpf__add_dgl_opengl(TRUE FALSE FALSE)
+# directly. SHARED_RESOURCES=TRUE embeds DGL's DejaVu font (fontFace(NANOVG_DEJAVU_SANS_TTF));
+# USE_FILE_BROWSER=TRUE builds the file dialog Save / Load open (DISTRHO_UI_FILE_BROWSER).
+dpf__add_dgl_opengl(TRUE TRUE FALSE)
 # StruckKit's own namespace (UmpireDAW's docs/decisions.md, "DPF fork"): on macOS pugl names its
 # Objective-C classes after it, so two DPF binaries with the same one in a host collide.
 target_compile_definitions(dgl-opengl PUBLIC DGL_NAMESPACE=StruckKitDGL)
@@ -504,3 +506,12 @@ set_tests_properties(pm-modalbank PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
 
 add_test(NAME pm-snare COMMAND pm-snare-test)
 set_tests_properties(pm-snare PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")
+
+# The UI's Save / Load file format, without the UI.
+add_executable(sk-presetfile-test test/sk_presetfile_test.cpp)
+target_include_directories(sk-presetfile-test PRIVATE plugin src/UI)
+set_target_properties(sk-presetfile-test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+
+add_test(NAME sk-presetfile COMMAND sk-presetfile-test "${CMAKE_SOURCE_DIR}/Presets"
+                                    "${CMAKE_BINARY_DIR}/presetfile-test")
+set_tests_properties(sk-presetfile PROPERTIES PASS_REGULAR_EXPRESSION "ALL PASS")

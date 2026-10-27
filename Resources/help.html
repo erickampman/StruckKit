@@ -306,7 +306,7 @@ h1.card, h2.card, h3.card {
 <div class="callout callout-note card">
 <div class="callout-content">
 <h2 id="panel">The Panel</h2>
-<p><strong>Across the top:</strong> the Unlikelyware logo (click it to open unlikelyware.com), the title, and the <strong>Preset</strong> menu on the right.</p>
+<p><strong>Across the top:</strong> the Unlikelyware logo (click it to open unlikelyware.com), the title, and on the right <strong>Save</strong> and <strong>Load</strong> (see <a href="#presets">Presets</a>), <strong>Help</strong> and the <strong>Preset</strong> menu.</p>
 <p><strong>The legend</strong> under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below.</p>
 <p><strong>Seven panels</strong> follow, in two columns: Crashes and Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master beside Percussion. A panel's title names its drums, so each knob is captioned by just its control.</p>
 <p><strong>Knobs:</strong></p>
@@ -439,7 +439,13 @@ h1.card, h2.card, h3.card {
 <h2 id="presets">Presets</h2>
 <p>The <strong>Preset</strong> menu, top right, lists the factory presets. It shows <strong>--</strong> until you pick one. Choosing a preset sets every control it has a value for; any it doesn't mention keep their current values.</p>
 <p>There is one factory preset so far, <strong>Init</strong>: every control at its default, with the StruckKit map. It doesn't set Voices.</p>
-<p>To keep your own settings, use your host's preset or project saving: StruckKit saves every control with the host's project.</p>
+<p><strong>Your own kits:</strong> <strong>Save</strong> and <strong>Load</strong>, left of Help, write the kit to a file and read one back, through the system's file dialog. The first time, the dialog opens on <strong>Documents/StruckKit</strong>; after that, on the last folder you used.</p>
+<ul>
+<li>A saved kit has every control, Voices included. Loading one sets every control the file has a value for.</li>
+<li>The menu then shows the kit's name, dimmed, in place of a factory preset's.</li>
+<li>The file is the same JSON as the factory presets, so a kit you save can be put in the source's <code>Presets</code> folder to build it in as a factory preset.</li>
+<li>The host still saves every control with its project, whether or not you saved it to a file.</li>
+</ul>
 </div>
 </div>
 <div class="callout callout-note card">

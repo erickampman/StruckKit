@@ -97,7 +97,7 @@ The ride, ride bell, agogos and low wood block are only in the GM map, and the h
 ~~~note [card]
 (#panel)
 ## The Panel
-**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title, and the **Preset** menu on the right.
+**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title, and on the right **Save** and **Load** (see [Presets](#presets)), **Help** and the **Preset** menu.
 
 **The legend** under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below.
 
@@ -214,7 +214,11 @@ The **Preset** menu, top right, lists the factory presets. It shows **--** until
 
 There is one factory preset so far, **Init**: every control at its default, with the StruckKit map. It doesn't set Voices.
 
-To keep your own settings, use your host's preset or project saving: StruckKit saves every control with the host's project.
+**Your own kits:** **Save** and **Load**, left of Help, write the kit to a file and read one back, through the system's file dialog. The first time, the dialog opens on **Documents/StruckKit**; after that, on the last folder you used.
+- A saved kit has every control, Voices included. Loading one sets every control the file has a value for.
+- The menu then shows the kit's name, dimmed, in place of a factory preset's.
+- The file is the same JSON as the factory presets, so a kit you save can be put in the source's `Presets` folder to build it in as a factory preset.
+- The host still saves every control with its project, whether or not you saved it to a file.
 ~~~
 ~~~note [card]
 (#tips)

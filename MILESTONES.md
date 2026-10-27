@@ -24,6 +24,19 @@
   and state recall
 - [ ] Linux VST3 build checked on the Linux box
 
+## Save and Load (2026-10-27)
+- [x] Save / Load in the header write the patch as the factory presets' JSON and read it back (src/UI/PresetFile.hpp),
+      through DPF's file dialog; loaded values clamped to each param's range.
+      Ported from StruckGaussian (ReleaseUMP R2-15). Fixed on the way:
+      the dumper wrote no HandDrums or Percussion section.
+      sk-presetfile checks the round trip, every factory preset, and non-presets
+- [x] AUv2: clap-wrapper gives no timers and (unpatched) never calls gui show(), so the UI's idle never ran and DPF would never
+      collect the dialog's result. The GUI now runs its own main-run-loop timer when the host has none, started at
+      set_parent; the home folder comes from the account, not the sandboxed $HOME; failures show in the Preset menu
+      (StruckGaussian 3f0c97c)
+- [ ] By hand: Save and Load in Logic Pro (AUv2) and a CLAP host on macOS; Windows and Linux (the dialog is native on
+      Windows, DPF's own on Linux)
+
 ## M3: Later
 - [ ] Raw CLAP entry point (DPF as GUI only) for MIDI 2.0 velocity and note-expression support
 - [ ] Move onto the DPF fork (erickampman/DPF) with own DGL_NAMESPACE
