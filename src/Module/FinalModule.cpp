@@ -17,9 +17,12 @@ struct FinalState {
     float fc  = 10.0f;     // cutoff in Hz
     double lastSR = 0.0;   // to detect SR changes
 
-    // simple one-pole param smoothers
+    // simple one-pole param smoothers. They start at the first block's values (primed), not at 1:
+    // starting at 1 made every voice's first note play 1/Level louder (+3 dB at the default 0.7)
+    // for the smoother's ~20 ms, so a voice's first note was louder than its later ones.
     float levelZ = 1.0f;
     float clipZ  = 1.0f;
+    bool  primed = false;
     static constexpr float aLevel = 0.001f;
     static constexpr float aClip  = 0.001f;
 
@@ -82,6 +85,7 @@ const KPBuffPair* ProcessFinalModule(uint64_t processCallID, uint32_t count, Mod
     const AUValue level     = module->paramByEnum(FinalOutputParamItemLevel);
     const AUValue spread    = module->paramByEnum(FinalOutputParamItemSpread);
     const AUValue clipLevel = module->paramByEnum(FinalOutputParamItemClipLevel);
+    if (!st->primed) { st->levelZ = level; st->clipZ = clipLevel; st->primed = true; }
     const bool filterDC     = (module->paramByEnum(FinalOutputParamItemFilterDC) >= 0.5f);
 
     float* lp   = inputBuffer->first->data;

@@ -96,12 +96,20 @@ const void SampleRateModalBankModule(Module* module, double newSampleRate)
 // (pitch, decay, brightness, strike) all carry slow control signals, and the
 // core recomputes coefficients per block regardless, so a per-sample read would
 // buy nothing. Returns 0 when nothing is patched.
+//
+// The LAST sample, not the first. A new note's pitch reaches the bank through
+// the Slew, which moves at most 0.21 octave a sample even at its fastest (its
+// 0.1 ms-per-octave floor), so sample 0 still holds about the voice's previous
+// pitch. Read there, the whole first block (the strike included) rang at the
+// old note's pitch and retuned a block later: a pitch blip and a level change
+// on every strike that changed note, and on a voice's first note (from 0
+// octaves, A440). The last sample is where the Slew has arrived.
 static inline float readControl(Module* module, uint8_t key,
                                 uint64_t processCallID, uint32_t count)
 {
-    if (!module->isInputConnected(key)) return 0.0f;
+    if (!module->isInputConnected(key) || count == 0) return 0.0f;
     const KPBuffPair* p = module->retrieveInput(key, processCallID, count);
-    return p->first->data[0];
+    return p->first->data[count - 1];
 }
 
 const KPBuffPair* ProcessModalBankModule(uint64_t processCallID, uint32_t count, Module* module)
