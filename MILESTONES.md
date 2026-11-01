@@ -34,8 +34,8 @@
       collect the dialog's result. The GUI now runs its own main-run-loop timer when the host has none, started at
       set_parent; the home folder comes from the account, not the sandboxed $HOME; failures show in the Preset menu
       (StruckGaussian 3f0c97c)
-- [ ] By hand: Save and Load in Logic Pro (AUv2) and a CLAP host on macOS; Windows and Linux (the dialog is native on
-      Windows, DPF's own on Linux)
+- [x] By hand on Linux (2026-11-01): Save and Load (DPF's own dialog)
+- [ ] By hand: Save and Load in Logic Pro (AUv2) and a CLAP host on macOS
 
 ## M3: Later
 - [ ] Raw CLAP entry point (DPF as GUI only) for MIDI 2.0 velocity and note-expression support
