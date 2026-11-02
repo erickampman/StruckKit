@@ -8,7 +8,7 @@ toms, crashes, ride and hi-hats, plus an octave of hand drums and small percussi
 
 | | |
 |---|---|
-| Formats | CLAP. VST3 and AUv2 (macOS) build from source; ready-built in a later preview |
+| Formats | CLAP. VST® 3 and AUv2 (macOS) build from source; ready-built in a later preview |
 | Platforms | Linux x86-64, macOS 26 or later on Apple Silicon. No Windows |
 | Version | 0.9.0 (preview) |
 | License | MIT |
@@ -76,3 +76,10 @@ Questions and bug reports go to [GitHub Issues](https://github.com/erickampman/S
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Trademarks
+
+VST is a registered trademark of Steinberg Media Technologies GmbH. Audio Units, Logic, Mac and
+macOS are trademarks of Apple Inc., registered in the U.S. and other countries. Linux is the
+registered trademark of Linus Torvalds in the U.S. and other countries. Other product names are
+trademarks of their owners, named here only to say what works with what.

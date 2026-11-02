@@ -6,7 +6,7 @@
 </div>
 
 <p>
-  <em>StruckKit is a CLAP and VST3 plugin on macOS (15 and later) and Linux, and an AUv2 plugin on macOS.</em>
+  <em>StruckKit is a CLAP and VST® 3 plugin on macOS (26 and later) and Linux, and an AUv2 plugin on macOS.</em>
 </p>
 
 ::: {.callout .callout-note .card}
@@ -256,3 +256,5 @@ There is one factory preset so far, **Init**: every control at its default, with
 - **The open hi-hat stops early.** Another hi-hat hit chokes it, as on a real kit. The same goes for the open triangle and the muted one.
 - **The kick doesn't respond to any knob.** It has none; only Level affects it.
 :::
+
+VST is a registered trademark of Steinberg Media Technologies GmbH.
