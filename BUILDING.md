@@ -139,7 +139,7 @@ configure again.
 To try a uw-core change that isn't pushed and pinned yet, point the build at another clone:
 
 ```bash
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_UW_CORE_DIR=$HOME/Dev-Common/uw-core
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRUCKKIT_UW_CORE_DIR=../uw-core
 ```
 
 When the change is ready, push uw-core first, then move StruckKit's submodule pin
