@@ -6,7 +6,7 @@
 </div>
 
 <p>
-  <em>StruckKit is a CLAP plugin for macOS (15 and later) and Linux. It needs a host that loads CLAP plugins.</em>
+  <em>StruckKit is a CLAP and VST3 plugin on macOS (15 and later) and Linux, and an AUv2 plugin on macOS.</em>
 </p>
 
 ::: {.callout .callout-note .card}
@@ -65,6 +65,8 @@ Your settings are saved with the host's project.
 | A# | Hi-hat, closed | Triangle, open |
 | B | Rack tom (10") | Timbale, high |
 
+The legend's key labels are shorter: the 12" and 10" toms are **Mid Tom** and **Hi Tom**, the muted conga **Mute**, the timbales **Timb Lo** and **Timb Hi**, the wood block **Block** and the muted triangle **Tri Mute**.
+
 **GM map**: General MIDI percussion note numbers. Where GM has a variant StruckKit doesn't model, it plays the nearest drum: the pedal hi-hat is the closed hat, the Chinese cymbal is Crash 1, the splash is Crash 2, and side stick is the rimshot.
 
 | Drum | GM notes |
@@ -97,20 +99,20 @@ The ride, ride bell, agogos and low wood block are only in the GM map, and the h
 
 ::: {.callout .callout-note .card}
 ## The Panel {#panel}
-**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title, and on the right **Save** and **Load** (see [Presets](#presets)), **Help** and the **Preset** menu.
+**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title (*StruckKit, modal drum kit*), and on the right **Save** and **Load** (see [Presets](#presets)), **Help** (a **?** box captioned Help, which opens this page in your web browser) and the **Preset** menu.
 
-**The legend** under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below.
+**The legend** under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below. A line along its foot reminds you which drums choke each other.
 
-**Seven panels** follow, in two columns: Crashes and Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master beside Percussion. A panel's title names its drums, so each knob is captioned by just its control.
+**Seven panels** follow, in three rows of two: Crashes and Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master sharing the last cell with Percussion. A panel's title names its drums, so each knob is captioned by just its control.
 
 **Knobs:**
 - **Drag** up to turn a knob up, down to turn it down; one full drag covers its whole range. The scroll wheel turns it too.
-- **Ctrl** while dragging or scrolling moves it ten times more finely.
+- **Ctrl** while dragging or scrolling moves it ten times more finely (on the Mac that is Control, not Cmd).
 - **Shift-click** sets it back to its default.
 
 Each knob shows its value under it. All the drum knobs read **0.00 to 1.00**, the position of the knob in its range; the sections below give the real quantity each one sets. **Level** reads 0.00 to 2.00.
 
-**Menus** (Preset, Map, Voices): click to open, then click a choice. Clicking elsewhere, or switching to another window, closes the menu.
+**Menus** (Preset, Map, Voices): click to open, then click a choice; the current one is highlighted. Clicking elsewhere, pressing Escape, or switching to another window closes the menu.
 
 The editor can be resized to any shape from 864 × 640 up (the full size is 1080 × 800); everything scales with it.
 :::
@@ -200,6 +202,7 @@ The muted triangle stops a ringing open one, as a hand closing on it does.
 
 ::: {.callout .callout-note .card}
 ## Master {#master}
+Level is on the left; Map sits above Voices on the right.
 - **Level**: the output level of the whole kit, from silence (0.00) to twice the default (2.00). Default 1.00. At 1.00, full-velocity hits peak just under full scale.
 - **Map**: which note plays which drum, **StruckKit** or **GM** (see [The Kit](#kit)). The legend changes to match.
 - **Voices**: how many drums can sound at once: **10**, **16** (the default), **20** or **32**. Past that, the oldest one still ringing is cut off for the new hit. 16 is enough for rolls under ringing crashes; raise it if long cymbals get cut short in busy parts.
@@ -228,7 +231,8 @@ There is one factory preset so far, **Init**: every control at its default, with
 
 **Your own kits:** **Save** and **Load**, left of Help, write the kit to a file and read one back, through the system's file dialog. The first time, the dialog opens on **Documents/StruckKit**; after that, on the last folder you used.
 - A saved kit has every control, Voices included. Loading one sets every control the file has a value for.
-- The menu then shows the kit's name, dimmed, in place of a factory preset's.
+- The menu then shows the kit's name, dimmed, in place of a factory preset's. Save offers that name (or the factory preset's, or *Untitled*) as the file name.
+- If a file can't be written or isn't a StruckKit kit, the menu says **Couldn't save** or **Couldn't load** instead, and nothing changes.
 - The file is the same JSON as the factory presets, so a kit you save can be put in the source's `Presets` folder to build it in as a factory preset.
 - The host still saves every control with its project, whether or not you saved it to a file.
 :::

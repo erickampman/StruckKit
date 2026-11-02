@@ -284,7 +284,7 @@ tbody tr:nth-child(even) {
 </div>
 
 <p>
-  <em>StruckKit is a CLAP plugin for macOS (15 and later) and Linux. It needs a host that loads CLAP plugins.</em>
+  <em>StruckKit is a CLAP and VST3 plugin on macOS (15 and later) and Linux, and an AUv2 plugin on macOS.</em>
 </p>
 
 <section id="on-this-page" class="callout callout-note card">
@@ -430,6 +430,11 @@ below 36 follow the same pattern.</p>
 </tr>
 </tbody>
 </table>
+<p>The legend's key labels are shorter: the 12" and 10" toms are
+<strong>Mid Tom</strong> and <strong>Hi Tom</strong>, the muted conga
+<strong>Mute</strong>, the timbales <strong>Timb Lo</strong> and
+<strong>Timb Hi</strong>, the wood block <strong>Block</strong> and the
+muted triangle <strong>Tri Mute</strong>.</p>
 <p><strong>GM map</strong>: General MIDI percussion note numbers. Where
 GM has a variant StruckKit doesn't model, it plays the nearest drum: the
 pedal hi-hat is the closed hat, the Chinese cymbal is Crash 1, the
@@ -536,26 +541,28 @@ one. Nothing else chokes.</p>
 <section id="panel" class="callout callout-note card">
 <h2>The Panel</h2>
 <p><strong>Across the top:</strong> the Unlikelyware logo (click it to
-open unlikelyware.com), the title, and on the right
-<strong>Save</strong> and <strong>Load</strong> (see <a
-href="#presets">Presets</a>), <strong>Help</strong> and the
-<strong>Preset</strong> menu.</p>
+open unlikelyware.com), the title (<em>StruckKit, modal drum kit</em>),
+and on the right <strong>Save</strong> and <strong>Load</strong> (see <a
+href="#presets">Presets</a>), <strong>Help</strong> (a
+<strong>?</strong> box captioned Help, which opens this page in your web
+browser) and the <strong>Preset</strong> menu.</p>
 <p><strong>The legend</strong> under it shows which key plays which drum
 for the current map. With the StruckKit map it draws the kit octave and
 the percussion octave as two keyboards; with GM it lists the note
 numbers by drum. Keys and names are coloured by drum family, matching
-the panels below.</p>
-<p><strong>Seven panels</strong> follow, in two columns: Crashes and
-Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master beside
-Percussion. A panel's title names its drums, so each knob is captioned
-by just its control.</p>
+the panels below. A line along its foot reminds you which drums choke
+each other.</p>
+<p><strong>Seven panels</strong> follow, in three rows of two: Crashes
+and Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master
+sharing the last cell with Percussion. A panel's title names its drums,
+so each knob is captioned by just its control.</p>
 <p><strong>Knobs:</strong></p>
 <ul>
 <li><strong>Drag</strong> up to turn a knob up, down to turn it down;
 one full drag covers its whole range. The scroll wheel turns it
 too.</li>
 <li><strong>Ctrl</strong> while dragging or scrolling moves it ten times
-more finely.</li>
+more finely (on the Mac that is Control, not Cmd).</li>
 <li><strong>Shift-click</strong> sets it back to its default.</li>
 </ul>
 <p>Each knob shows its value under it. All the drum knobs read
@@ -563,8 +570,8 @@ more finely.</li>
 the sections below give the real quantity each one sets.
 <strong>Level</strong> reads 0.00 to 2.00.</p>
 <p><strong>Menus</strong> (Preset, Map, Voices): click to open, then
-click a choice. Clicking elsewhere, or switching to another window,
-closes the menu.</p>
+click a choice; the current one is highlighted. Clicking elsewhere,
+pressing Escape, or switching to another window closes the menu.</p>
 <p>The editor can be resized to any shape from 864 × 640 up (the full
 size is 1080 × 800); everything scales with it.</p>
 </section>
@@ -737,6 +744,7 @@ does.</p>
 </section>
 <section id="master" class="callout callout-note card">
 <h2>Master</h2>
+<p>Level is on the left; Map sits above Voices on the right.</p>
 <ul>
 <li><strong>Level</strong>: the output level of the whole kit, from
 silence (0.00) to twice the default (2.00). Default 1.00. At 1.00,
@@ -791,7 +799,11 @@ folder you used.</p>
 <li>A saved kit has every control, Voices included. Loading one sets
 every control the file has a value for.</li>
 <li>The menu then shows the kit's name, dimmed, in place of a factory
-preset's.</li>
+preset's. Save offers that name (or the factory preset's, or
+<em>Untitled</em>) as the file name.</li>
+<li>If a file can't be written or isn't a StruckKit kit, the menu says
+<strong>Couldn't save</strong> or <strong>Couldn't load</strong>
+instead, and nothing changes.</li>
 <li>The file is the same JSON as the factory presets, so a kit you save
 can be put in the source's <code>Presets</code> folder to build it in as
 a factory preset.</li>
