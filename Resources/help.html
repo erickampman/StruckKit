@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <title>help-StruckKit</title>
     <style>
-    :root {
+:root {
   --bg: #0f1115;
   --page: #141823;
   --text: #e6e2d8;
@@ -249,231 +249,601 @@ h1.card, h2.card, h3.card {
 .breadcrumb a:hover { opacity: 1.0; }
 .breadcrumb .crumb-current { opacity: 1.0; }
 
-    </style>
+
+/* Tables (pipe tables from pandoc) */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.95em;
+}
+
+th, td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  vertical-align: top;
+}
+
+thead th {
+  border-bottom: 2px solid #bbb;
+  font-weight: 600;
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.025);
+}    </style>
 </head>
 <body>
 <div class="page">
-<p><div style="display: flex; align-items: center; gap: 0.75rem; margin: 1.5rem 0 0.5rem;"> <a href="https://www.unlikelyware.com" target="_blank" rel="noopener noreferrer"> <img src="Unlikelyware.png" alt="Unlikelyware" style="width: 56px; height: auto; border-radius: 10px; margin: 0; display: block;"> </a> <h1 style="margin: 0;">StruckKit</h1> </div></p>
-<p><p> <em>StruckKit is a CLAP plugin for macOS (15 and later) and Linux. It needs a host that loads CLAP plugins.</em> </p></p>
-<div class="callout callout-note card">
-<div class="callout-content">
+<div style="display: flex; align-items: center; gap: 0.75rem; margin: 1.5rem 0 0.5rem;">
+  <a href="https://www.unlikelyware.com" target="_blank" rel="noopener noreferrer">
+    <img src="Unlikelyware.png" alt="Unlikelyware" style="width: 56px; height: auto; border-radius: 10px; margin: 0; display: block;">
+  </a>
+  <h1 style="margin: 0;">StruckKit</h1>
+</div>
+
+<p>
+  <em>StruckKit is a CLAP plugin for macOS (15 and later) and Linux. It needs a host that loads CLAP plugins.</em>
+</p>
+
+<section id="on-this-page" class="callout callout-note card">
 <h2>On This Page</h2>
-<p><a href="#overview">Overview</a> · <a href="#getting-started">Getting Started</a> · <a href="#kit">The Kit</a> · <a href="#panel">The Panel</a></p>
-<p><strong>The drums —</strong> <a href="#crashes">Crashes</a> · <a href="#snare">Snare</a> · <a href="#toms">Toms</a> · <a href="#hats">Hi-Hats</a> · <a href="#hand-drums">Hand Drums</a> · <a href="#percussion">Percussion</a> · <a href="#master">Master</a></p>
-<p><strong>Playing —</strong> <a href="#midi">MIDI</a> · <a href="#presets">Presets</a> · <a href="#tips">Tips</a> · <a href="#troubleshooting">Troubleshooting</a></p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="overview">Overview</h2>
-<p>StruckKit is a <strong>drum kit in one plugin</strong>: kick, snare, toms, crashes and hi-hats, plus congas, bongos, timbales and small percussion, all played from one instance on one MIDI track.</p>
-<p>Every drum except the kick is a <strong>physical model</strong>. Instead of playing back samples, StruckKit works out how the real instrument vibrates and lets those vibrations ring:</p>
+<p><a href="#overview">Overview</a> · <a href="#getting-started">Getting
+Started</a> · <a href="#kit">The Kit</a> · <a href="#panel">The
+Panel</a></p>
+<p><strong>The drums —</strong> <a href="#crashes">Crashes</a> · <a
+href="#snare">Snare</a> · <a href="#toms">Toms</a> · <a
+href="#hats">Hi-Hats</a> · <a href="#hand-drums">Hand Drums</a> · <a
+href="#percussion">Percussion</a> · <a href="#master">Master</a></p>
+<p><strong>Playing —</strong> <a href="#midi">MIDI</a> · <a
+href="#presets">Presets</a> · <a href="#tips">Tips</a> · <a
+href="#troubleshooting">Troubleshooting</a></p>
+</section>
+<section id="overview" class="callout callout-note card">
+<h2>Overview</h2>
+<p>StruckKit is a <strong>drum kit in one plugin</strong>: kick, snare,
+toms, crashes and hi-hats, plus congas, bongos, timbales and small
+percussion, all played from one instance on one MIDI track.</p>
+<p>Every drum except the kick is a <strong>physical model</strong>.
+Instead of playing back samples, StruckKit works out how the real
+instrument vibrates and lets those vibrations ring:</p>
 <ul>
-<li><strong>Snare and toms</strong> are two-headed drums: the batter head's own vibration modes, the resonant (bottom) head coupled to it through the air inside the shell, and, on the snare, eight wires resting on the bottom head that rattle when it moves.</li>
-<li><strong>Crashes, ride and hi-hats</strong> are bronze plates with around a thousand modes. Hard hits on thin cymbals spread their energy upward into a wash, as real ones do. The hi-hats are the same plate with a second cymbal underneath, touching it or not.</li>
-<li><strong>Congas, bongos and timbales</strong> are single-headed drums open at the bottom. The timbales' metal shells ring too.</li>
-<li><strong>Cowbell, agogo, claves, wood blocks and triangle</strong> are struck bells, bars and blocks, each with its own series of modes.</li>
-<li><strong>The kick</strong> is a swept sine with a beater click. It isn't a physical model and has no controls; only Level affects it.</li>
+<li><strong>Snare and toms</strong> are two-headed drums: the batter
+head's own vibration modes, the resonant (bottom) head coupled to it
+through the air inside the shell, and, on the snare, eight wires resting
+on the bottom head that rattle when it moves.</li>
+<li><strong>Crashes, ride and hi-hats</strong> are bronze plates with
+around a thousand modes. Hard hits on thin cymbals spread their energy
+upward into a wash, as real ones do. The hi-hats are the same plate with
+a second cymbal underneath, touching it or not.</li>
+<li><strong>Congas, bongos and timbales</strong> are single-headed drums
+open at the bottom. The timbales' metal shells ring too.</li>
+<li><strong>Cowbell, agogo, claves, wood blocks and triangle</strong>
+are struck bells, bars and blocks, each with its own series of
+modes.</li>
+<li><strong>The kick</strong> is a swept sine with a beater click. It
+isn't a physical model and has no controls; only Level affects it.</li>
 </ul>
-<p>Because the drums are models, <strong>velocity changes the sound, not just the level</strong>: a soft hit is a longer contact, which darkens the tone, and a hard hit on a tom or hand drum starts slightly sharp and settles, as a real head does. The knobs are physical too: a cymbal's diameter, a head's tension, where the stick lands.</p>
-<p>Every drum rings out on its own; releasing the key doesn't stop it.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="getting-started">Getting Started</h2>
-<ol>
-<li><strong>Add StruckKit</strong> to an instrument track in your host.</li>
-<li><strong>Play the kit.</strong> With the default map, C1 (note 36) is the kick and E1 (note 40) the snare; the legend at the top of the panel shows every key. Notes 36–47 are the kit, 48–59 the hand drums and percussion, and the pattern repeats every two octaves.</li>
-<li><strong>Using GM drum patterns?</strong> Set <strong>Map</strong> (in the Master panel) to <strong>GM</strong>, and General MIDI note numbers play the matching drums.</li>
-<li><strong>Shape each drum</strong> with the knobs in its panel, and set the overall level with <strong>Level</strong>.</li>
+<p>Because the drums are models, <strong>velocity changes the sound, not
+just the level</strong>: a soft hit is a longer contact, which darkens
+the tone, and a hard hit on a tom or hand drum starts slightly sharp and
+settles, as a real head does. The knobs are physical too: a cymbal's
+diameter, a head's tension, where the stick lands.</p>
+<p>Every drum rings out on its own; releasing the key doesn't stop
+it.</p>
+</section>
+<section id="getting-started" class="callout callout-note card">
+<h2>Getting Started</h2>
+<ol type="1">
+<li><strong>Add StruckKit</strong> to an instrument track in your
+host.</li>
+<li><strong>Play the kit.</strong> With the default map, C1 (note 36) is
+the kick and E1 (note 40) the snare; the legend at the top of the panel
+shows every key. Notes 36–47 are the kit, 48–59 the hand drums and
+percussion, and the pattern repeats every two octaves.</li>
+<li><strong>Using GM drum patterns?</strong> Set <strong>Map</strong>
+(in the Master panel) to <strong>GM</strong>, and General MIDI note
+numbers play the matching drums.</li>
+<li><strong>Shape each drum</strong> with the knobs in its panel, and
+set the overall level with <strong>Level</strong>.</li>
 </ol>
 <p>Your settings are saved with the host's project.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="kit">The Kit</h2>
+</section>
+<section id="kit" class="callout callout-note card">
+<h2>The Kit</h2>
 <p><strong>Map</strong> chooses which note plays which drum.</p>
-<p><strong>StruckKit map</strong> (the default): two octaves, repeating every 24 notes. The kit octave is 36–47, 60–71, 84–95 and so on; the percussion octave is 48–59, 72–83, 96–107 and so on. In both, the white keys are drums. In the kit octave the black keys are the cymbals; in the percussion octave they are the small metal and wood instruments. Notes below 36 follow the same pattern.</p>
-<p>| Key | Kit octave (36–47, 60–71, …) | Percussion octave (48–59, 72–83, …) | |---|---|---| | C | Kick | Tumba (low conga) | | C# | Crash 1 | Cowbell | | D | Kick 2 | Conga | | D# | Crash 2 | Claves | | E | Snare | Conga, muted | | F | Rimshot | Bongo, hembra (low) | | F# | Hi-hat, open | Wood block | | G | Floor tom (16") | Bongo, macho (high) | | G# | Hi-hat, half-open | Triangle, muted | | A | Rack tom (12") | Timbale, low | | A# | Hi-hat, closed | Triangle, open | | B | Rack tom (10") | Timbale, high |</p>
-<p><strong>GM map</strong>: General MIDI percussion note numbers. Where GM has a variant StruckKit doesn't model, it plays the nearest drum: the pedal hi-hat is the closed hat, the Chinese cymbal is Crash 1, the splash is Crash 2, and side stick is the rimshot.</p>
-<p>| Drum | GM notes | |---|---| | Kick, Kick 2 | 36, 35 | | Snare | 38, 40 | | Rimshot | 37 | | Floor tom (16") | 41, 43 | | Rack tom (12") | 45, 47 | | Rack tom (10") | 48, 50 | | Hi-hat, closed | 42, 44 | | Hi-hat, open | 46 | | Crash 1 | 49, 52 | | Crash 2 | 57, 55 | | Ride | 51, 59 | | Ride bell | 53 | | Congas (low, high), muted | 64, 63, 62 | | Bongos (low, high) | 61, 60 | | Timbales (low, high) | 66, 65 | | Cowbell | 56 | | Agogo (high, low) | 67, 68 | | Claves | 75 | | Wood blocks (high, low) | 76, 77 | | Triangle, muted and open | 80, 81 |</p>
-<p>The ride, ride bell, agogos and low wood block are only in the GM map, and the half-open hi-hat only in the StruckKit map. GM percussion StruckKit has no model for (clap, tambourine, maracas, cabasa, guiro, whistles, cuica, vibraslap) is silent.</p>
-<p><strong>Chokes.</strong> The hi-hats cut each other off: a closed hat stops a ringing open one within a few milliseconds, as closing the pedal does. The two triangles do the same, so a muted triangle stops an open one. Nothing else chokes.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="panel">The Panel</h2>
-<p><strong>Across the top:</strong> the Unlikelyware logo (click it to open unlikelyware.com), the title, and on the right <strong>Save</strong> and <strong>Load</strong> (see <a href="#presets">Presets</a>), <strong>Help</strong> and the <strong>Preset</strong> menu.</p>
-<p><strong>The legend</strong> under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below.</p>
-<p><strong>Seven panels</strong> follow, in two columns: Crashes and Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master beside Percussion. A panel's title names its drums, so each knob is captioned by just its control.</p>
+<p><strong>StruckKit map</strong> (the default): two octaves, repeating
+every 24 notes. The kit octave is 36–47, 60–71, 84–95 and so on; the
+percussion octave is 48–59, 72–83, 96–107 and so on. In both, the white
+keys are drums. In the kit octave the black keys are the cymbals; in the
+percussion octave they are the small metal and wood instruments. Notes
+below 36 follow the same pattern.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Kit octave (36–47, 60–71, …)</th>
+<th>Percussion octave (48–59, 72–83, …)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td>Kick</td>
+<td>Tumba (low conga)</td>
+</tr>
+<tr>
+<td>C#</td>
+<td>Crash 1</td>
+<td>Cowbell</td>
+</tr>
+<tr>
+<td>D</td>
+<td>Kick 2</td>
+<td>Conga</td>
+</tr>
+<tr>
+<td>D#</td>
+<td>Crash 2</td>
+<td>Claves</td>
+</tr>
+<tr>
+<td>E</td>
+<td>Snare</td>
+<td>Conga, muted</td>
+</tr>
+<tr>
+<td>F</td>
+<td>Rimshot</td>
+<td>Bongo, hembra (low)</td>
+</tr>
+<tr>
+<td>F#</td>
+<td>Hi-hat, open</td>
+<td>Wood block</td>
+</tr>
+<tr>
+<td>G</td>
+<td>Floor tom (16")</td>
+<td>Bongo, macho (high)</td>
+</tr>
+<tr>
+<td>G#</td>
+<td>Hi-hat, half-open</td>
+<td>Triangle, muted</td>
+</tr>
+<tr>
+<td>A</td>
+<td>Rack tom (12")</td>
+<td>Timbale, low</td>
+</tr>
+<tr>
+<td>A#</td>
+<td>Hi-hat, closed</td>
+<td>Triangle, open</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Rack tom (10")</td>
+<td>Timbale, high</td>
+</tr>
+</tbody>
+</table>
+<p><strong>GM map</strong>: General MIDI percussion note numbers. Where
+GM has a variant StruckKit doesn't model, it plays the nearest drum: the
+pedal hi-hat is the closed hat, the Chinese cymbal is Crash 1, the
+splash is Crash 2, and side stick is the rimshot.</p>
+<table>
+<thead>
+<tr>
+<th>Drum</th>
+<th>GM notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kick, Kick 2</td>
+<td>36, 35</td>
+</tr>
+<tr>
+<td>Snare</td>
+<td>38, 40</td>
+</tr>
+<tr>
+<td>Rimshot</td>
+<td>37</td>
+</tr>
+<tr>
+<td>Floor tom (16")</td>
+<td>41, 43</td>
+</tr>
+<tr>
+<td>Rack tom (12")</td>
+<td>45, 47</td>
+</tr>
+<tr>
+<td>Rack tom (10")</td>
+<td>48, 50</td>
+</tr>
+<tr>
+<td>Hi-hat, closed</td>
+<td>42, 44</td>
+</tr>
+<tr>
+<td>Hi-hat, open</td>
+<td>46</td>
+</tr>
+<tr>
+<td>Crash 1</td>
+<td>49, 52</td>
+</tr>
+<tr>
+<td>Crash 2</td>
+<td>57, 55</td>
+</tr>
+<tr>
+<td>Ride</td>
+<td>51, 59</td>
+</tr>
+<tr>
+<td>Ride bell</td>
+<td>53</td>
+</tr>
+<tr>
+<td>Congas (low, high), muted</td>
+<td>64, 63, 62</td>
+</tr>
+<tr>
+<td>Bongos (low, high)</td>
+<td>61, 60</td>
+</tr>
+<tr>
+<td>Timbales (low, high)</td>
+<td>66, 65</td>
+</tr>
+<tr>
+<td>Cowbell</td>
+<td>56</td>
+</tr>
+<tr>
+<td>Agogo (high, low)</td>
+<td>67, 68</td>
+</tr>
+<tr>
+<td>Claves</td>
+<td>75</td>
+</tr>
+<tr>
+<td>Wood blocks (high, low)</td>
+<td>76, 77</td>
+</tr>
+<tr>
+<td>Triangle, muted and open</td>
+<td>80, 81</td>
+</tr>
+</tbody>
+</table>
+<p>The ride, ride bell, agogos and low wood block are only in the GM
+map, and the half-open hi-hat only in the StruckKit map. GM percussion
+StruckKit has no model for (clap, tambourine, maracas, cabasa, guiro,
+whistles, cuica, vibraslap) is silent.</p>
+<p><strong>Chokes.</strong> The hi-hats cut each other off: a closed hat
+stops a ringing open one within a few milliseconds, as closing the pedal
+does. The two triangles do the same, so a muted triangle stops an open
+one. Nothing else chokes.</p>
+</section>
+<section id="panel" class="callout callout-note card">
+<h2>The Panel</h2>
+<p><strong>Across the top:</strong> the Unlikelyware logo (click it to
+open unlikelyware.com), the title, and on the right
+<strong>Save</strong> and <strong>Load</strong> (see <a
+href="#presets">Presets</a>), <strong>Help</strong> and the
+<strong>Preset</strong> menu.</p>
+<p><strong>The legend</strong> under it shows which key plays which drum
+for the current map. With the StruckKit map it draws the kit octave and
+the percussion octave as two keyboards; with GM it lists the note
+numbers by drum. Keys and names are coloured by drum family, matching
+the panels below.</p>
+<p><strong>Seven panels</strong> follow, in two columns: Crashes and
+Snare, Toms and Hi-Hats, Hand Drums and Percussion, with Master beside
+Percussion. A panel's title names its drums, so each knob is captioned
+by just its control.</p>
 <p><strong>Knobs:</strong></p>
 <ul>
-<li><strong>Drag</strong> up to turn a knob up, down to turn it down; one full drag covers its whole range. The scroll wheel turns it too.</li>
-<li><strong>Ctrl</strong> while dragging or scrolling moves it ten times more finely.</li>
+<li><strong>Drag</strong> up to turn a knob up, down to turn it down;
+one full drag covers its whole range. The scroll wheel turns it
+too.</li>
+<li><strong>Ctrl</strong> while dragging or scrolling moves it ten times
+more finely.</li>
 <li><strong>Shift-click</strong> sets it back to its default.</li>
 </ul>
-<p>Each knob shows its value under it. All the drum knobs read <strong>0.00 to 1.00</strong>, the position of the knob in its range; the sections below give the real quantity each one sets. <strong>Level</strong> reads 0.00 to 2.00.</p>
-<p><strong>Menus</strong> (Preset, Map, Voices): click to open, then click a choice. Clicking elsewhere, or switching to another window, closes the menu.</p>
-<p>The editor can be resized to any shape from 864 × 640 up (the full size is 1080 × 800); everything scales with it.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="crashes">Crashes (and ride)</h2>
-<p>Two crash cymbals, C# and D# in the kit octave, modelled as free-edge bronze plates. They are different cymbals, not one cymbal at two sizes: Crash 2 is also slightly thinner and more domed, which puts its low clang well above Crash 1's.</p>
+<p>Each knob shows its value under it. All the drum knobs read
+<strong>0.00 to 1.00</strong>, the position of the knob in its range;
+the sections below give the real quantity each one sets.
+<strong>Level</strong> reads 0.00 to 2.00.</p>
+<p><strong>Menus</strong> (Preset, Map, Voices): click to open, then
+click a choice. Clicking elsewhere, or switching to another window,
+closes the menu.</p>
+<p>The editor can be resized to any shape from 864 × 640 up (the full
+size is 1080 × 800); everything scales with it.</p>
+</section>
+<section id="crashes" class="callout callout-note card">
+<h2>Crashes (and ride)</h2>
+<p>Two crash cymbals, C# and D# in the kit octave, modelled as free-edge
+bronze plates. They are different cymbals, not one cymbal at two sizes:
+Crash 2 is also slightly thinner and more domed, which puts its low
+clang well above Crash 1's.</p>
 <ul>
-<li><strong>Size 1</strong>: Crash 1's diameter, from 13" to 22". Default 20". Bigger is lower and longer.</li>
-<li><strong>Size 2</strong>: Crash 2's diameter, from 13" to 22". Default 14".</li>
-<li><strong>Thin</strong>: the thickness of both crashes, from heavy (1.2 mm) to thin (0.6 mm). A thinner cymbal swings further for the same hit, so it blooms into a wash sooner and more easily.</li>
-<li><strong>Decay</strong>: how long both crashes ring, set as the bronze's internal loss: short at the left, long at the right.</li>
-<li><strong>Stroke</strong>: where and how the stick hits. At the left, the shoulder of the stick on the edge: a crash. Toward the right, the tip of the stick on the bow, nearer the centre: a sharper, ride-like ping.</li>
+<li><strong>Size 1</strong>: Crash 1's diameter, from 13" to 22".
+Default 20". Bigger is lower and longer.</li>
+<li><strong>Size 2</strong>: Crash 2's diameter, from 13" to 22".
+Default 14".</li>
+<li><strong>Thin</strong>: the thickness of both crashes, from heavy
+(1.2 mm) to thin (0.6 mm). A thinner cymbal swings further for the same
+hit, so it blooms into a wash sooner and more easily.</li>
+<li><strong>Decay</strong>: how long both crashes ring, set as the
+bronze's internal loss: short at the left, long at the right.</li>
+<li><strong>Stroke</strong>: where and how the stick hits. At the left,
+the shoulder of the stick on the edge: a crash. Toward the right, the
+tip of the stick on the bow, nearer the centre: a sharper, ride-like
+ping.</li>
 </ul>
-<p><strong>The ride</strong> (GM map only: notes 51, 59, and 53 for the bell) is a 21" cymbal, heavier and longer-ringing than the crashes, played with the tip on the bow or on the bell. It has no panel of its own: it follows the crashes' <strong>Thin</strong> and <strong>Decay</strong>. Size and Stroke don't affect it.</p>
-</div>
-</div>
+<p><strong>The ride</strong> (GM map only: notes 51, 59, and 53 for the
+bell) is a 21" cymbal, heavier and longer-ringing than the crashes,
+played with the tip on the bow or on the bell. It has no panel of its
+own: it follows the crashes' <strong>Thin</strong> and
+<strong>Decay</strong>. Size and Stroke don't affect it.</p>
+</section>
 <details class="disclosure">
 <summary class="disclosure-title subtle">How the cymbals are modelled</summary>
+
 <div class="disclosure-content">
-<p>Each cymbal is a plate with about a thousand vibration modes: the lowest worked out exactly for a free-edge plate, the rest approximated. The dome stiffens it, where the stick lands decides which modes it drives, higher modes lose energy faster, and a bigger cymbal radiates its low modes better.</p>
-<p>What makes a cymbal a cymbal rather than a bell is a <strong>nonlinear cascade</strong>: energy flows from the low modes the stick excites into higher ones, building the shimmer after the hit. How strongly it flows follows how far the rim swings compared with the cymbal's thickness, so hard hits on thin cymbals bloom into a wash and soft ones stay clean. The cascade moves energy without creating it.</p>
+<p>Each cymbal is a plate with about a thousand vibration modes: the
+lowest worked out exactly for a free-edge plate, the rest approximated.
+The dome stiffens it, where the stick lands decides which modes it
+drives, higher modes lose energy faster, and a bigger cymbal radiates
+its low modes better.</p>
+<p>What makes a cymbal a cymbal rather than a bell is a
+<strong>nonlinear cascade</strong>: energy flows from the low modes the
+stick excites into higher ones, building the shimmer after the hit. How
+strongly it flows follows how far the rim swings compared with the
+cymbal's thickness, so hard hits on thin cymbals bloom into a wash and
+soft ones stay clean. The cascade moves energy without creating it.</p>
 </div>
 </details>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="snare">Snare (stroke, rimshot)</h2>
-<p>E plays a normal stroke and F a rimshot (kit octave). The snare is a two-headed drum: the batter head's vibration modes, the snare-side head coupled to it through the air in the shell, and eight wires resting on the snare-side head.</p>
+
+<section id="snare" class="callout callout-note card">
+<h2>Snare (stroke, rimshot)</h2>
+<p>E plays a normal stroke and F a rimshot (kit octave). The snare is a
+two-headed drum: the batter head's vibration modes, the snare-side head
+coupled to it through the air in the shell, and eight wires resting on
+the snare-side head.</p>
 <ul>
-<li><strong>Tune</strong>: the batter head's tension, which sets its pitch. The head's fundamental runs from 150 Hz to 300 Hz across the knob (as an unloaded head; the air in the shell pulls the sounding pitch around that).</li>
-<li><strong>Ring</strong>: the head's damping, from muffled to open. The ring time runs from about 0.12 s to 1.5 s.</li>
-<li><strong>Position</strong>: where the stick lands, from the centre (rounder, darker) toward the edge (more ring and overtones). The rimshot always lands near the edge and ignores Position.</li>
-<li><strong>Tension</strong>: the snare wires' tension. Loose wires give a long, loose buzz; tight wires a short, crisp burst. Tighter wires also damp the snare-side head more.</li>
-<li><strong>Wires</strong>: how loud the wires are, from none (a snare with the wires off) to full.</li>
+<li><strong>Tune</strong>: the batter head's tension, which sets its
+pitch. The head's fundamental runs from 150 Hz to 300 Hz across the knob
+(as an unloaded head; the air in the shell pulls the sounding pitch
+around that).</li>
+<li><strong>Ring</strong>: the head's damping, from muffled to open. The
+ring time runs from about 0.12 s to 1.5 s.</li>
+<li><strong>Position</strong>: where the stick lands, from the centre
+(rounder, darker) toward the edge (more ring and overtones). The rimshot
+always lands near the edge and ignores Position.</li>
+<li><strong>Tension</strong>: the snare wires' tension. Loose wires give
+a long, loose buzz; tight wires a short, crisp burst. Tighter wires also
+damp the snare-side head more.</li>
+<li><strong>Wires</strong>: how loud the wires are, from none (a snare
+with the wires off) to full.</li>
 </ul>
-<p>The <strong>rimshot</strong> is always a hard hit: the stick strikes head and rim together, with a crack from the rim.</p>
-</div>
-</div>
+<p>The <strong>rimshot</strong> is always a hard hit: the stick strikes
+head and rim together, with a crack from the rim.</p>
+</section>
 <details class="disclosure">
 <summary class="disclosure-title subtle">How the snare wires work</summary>
+
 <div class="disclosure-content">
-<p>The wires don't add noise on top of the drum. They follow the snare-side head's motion: when the head moves far enough to lift them they slap back against it, so they rattle in step with the drum, harder after a harder hit, and stop by themselves when the head no longer moves enough to lift them. Each of the eight strands sits at a slightly different tension and position, so their impacts interleave instead of landing together.</p>
+<p>The wires don't add noise on top of the drum. They follow the
+snare-side head's motion: when the head moves far enough to lift them
+they slap back against it, so they rattle in step with the drum, harder
+after a harder hit, and stop by themselves when the head no longer moves
+enough to lift them. Each of the eight strands sits at a slightly
+different tension and position, so their impacts interleave instead of
+landing together.</p>
 </div>
 </details>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="toms">Toms (16" floor, 12", 10")</h2>
-<p>G, A and B in the kit octave: a 16" floor tom and 12" and 10" rack toms. They are the snare's two-headed drum without wires, at real sizes and with deeper shells, so they sustain longer. All four knobs act on all three toms.</p>
+
+<section id="toms" class="callout callout-note card">
+<h2>Toms (16" floor, 12", 10")</h2>
+<p>G, A and B in the kit octave: a 16" floor tom and 12" and 10" rack
+toms. They are the snare's two-headed drum without wires, at real sizes
+and with deeper shells, so they sustain longer. All four knobs act on
+all three toms.</p>
 <ul>
-<li><strong>Tune</strong>: the heads' tension. All three move together and keep the intervals their sizes give them (the smaller toms are tuned a little tighter, as drummers do). Across the knob the floor tom's fundamental runs from about 65 Hz to 135 Hz and the 10" from about 125 Hz to 255 Hz.</li>
-<li><strong>Ring</strong>: the batter head's damping, from muffled to open. The ring time runs from about 0.25 s to 2.5 s; the floor tom rings longer than that and the 10" shorter.</li>
-<li><strong>Position</strong>: where the stick lands, from the centre toward the edge.</li>
-<li><strong>Reso</strong>: the resonant (bottom) head's tuning against the batter head, from three-quarters of its pitch to one and a half times it. Near the middle the two heads trade energy and the drum sustains longest; further apart, the note gets shorter and more defined.</li>
+<li><strong>Tune</strong>: the heads' tension. All three move together
+and keep the intervals their sizes give them (the smaller toms are tuned
+a little tighter, as drummers do). Across the knob the floor tom's
+fundamental runs from about 65 Hz to 135 Hz and the 10" from about 125
+Hz to 255 Hz.</li>
+<li><strong>Ring</strong>: the batter head's damping, from muffled to
+open. The ring time runs from about 0.25 s to 2.5 s; the floor tom rings
+longer than that and the 10" shorter.</li>
+<li><strong>Position</strong>: where the stick lands, from the centre
+toward the edge.</li>
+<li><strong>Reso</strong>: the resonant (bottom) head's tuning against
+the batter head, from three-quarters of its pitch to one and a half
+times it. Near the middle the two heads trade energy and the drum
+sustains longest; further apart, the note gets shorter and more
+defined.</li>
 </ul>
-<p>Hard hits start slightly sharp and fall as the head settles (the tom's "doom"), more so the harder you hit.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="hats">Hi-Hats (open, half, closed)</h2>
-<p>F# (open), G# (half-open) and A# (closed) in the kit octave. The hi-hat is the crash's plate model with the bottom cymbal as a second plate underneath: open, the two never touch; half-open, they chatter against each other; closed, they are clamped together for a short "chick". A new hi-hat hit cuts off the one before it.</p>
+<p>Hard hits start slightly sharp and fall as the head settles (the
+tom's "doom"), more so the harder you hit.</p>
+</section>
+<section id="hats" class="callout callout-note card">
+<h2>Hi-Hats (open, half, closed)</h2>
+<p>F# (open), G# (half-open) and A# (closed) in the kit octave. The
+hi-hat is the crash's plate model with the bottom cymbal as a second
+plate underneath: open, the two never touch; half-open, they chatter
+against each other; closed, they are clamped together for a short
+"chick". A new hi-hat hit cuts off the one before it.</p>
 <ul>
-<li><strong>Size</strong>: the cymbals' diameter, from 12" to 15". Default 14".</li>
-<li><strong>Thin</strong>: their thickness, from heavy (1.4 mm) to thin (0.8 mm).</li>
-<li><strong>Sizzle</strong>: how close together the half-open cymbals sit, and so how much they chatter. Higher is closer and more sizzle. Sizzle affects only the half-open hat.</li>
+<li><strong>Size</strong>: the cymbals' diameter, from 12" to 15".
+Default 14".</li>
+<li><strong>Thin</strong>: their thickness, from heavy (1.4 mm) to thin
+(0.8 mm).</li>
+<li><strong>Sizzle</strong>: how close together the half-open cymbals
+sit, and so how much they chatter. Higher is closer and more sizzle.
+Sizzle affects only the half-open hat.</li>
 </ul>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="hand-drums">Hand Drums (congas, bongos, timbales)</h2>
-<p>The white keys of the percussion octave. All are single-headed drums open at the bottom, so the lowest mode drains quickly down the shell and the pitch you hear comes from the next one up.</p>
+</section>
+<section id="hand-drums" class="callout callout-note card">
+<h2>Hand Drums (congas, bongos, timbales)</h2>
+<p>The white keys of the percussion octave. All are single-headed drums
+open at the bottom, so the lowest mode drains quickly down the shell and
+the pitch you hear comes from the next one up.</p>
 <ul>
-<li><strong>Congas</strong>: head tension for the three congas (tumba, conga, muted conga), together. Across the knob the tumba's open tone runs from about 150 Hz to 220 Hz and the conga's from about 215 Hz to 320 Hz.</li>
-<li><strong>Bongos</strong>: head tension for both bongos. The hembra (low) runs from about 350 Hz to 510 Hz, the macho (high) from about 490 Hz to 720 Hz.</li>
-<li><strong>Timbales</strong>: head tension for both timbales, together from about 270 Hz to 510 Hz.</li>
-<li><strong>Ring</strong>: head damping for all of them, from muffled to open. The congas and timbales ring longest, the bongos shorter; the timbales' metal shells ring longer with it too.</li>
+<li><strong>Congas</strong>: head tension for the three congas (tumba,
+conga, muted conga), together. Across the knob the tumba's open tone
+runs from about 150 Hz to 220 Hz and the conga's from about 215 Hz to
+320 Hz.</li>
+<li><strong>Bongos</strong>: head tension for both bongos. The hembra
+(low) runs from about 350 Hz to 510 Hz, the macho (high) from about 490
+Hz to 720 Hz.</li>
+<li><strong>Timbales</strong>: head tension for both timbales, together
+from about 270 Hz to 510 Hz.</li>
+<li><strong>Ring</strong>: head damping for all of them, from muffled to
+open. The congas and timbales ring longest, the bongos shorter; the
+timbales' metal shells ring longer with it too.</li>
 </ul>
-<p>The <strong>muted conga</strong> is the open conga with the hand left on the head: it's gone within about a tenth of a second, whatever Ring is set to. Congas and bongos are played with the hand, a softer, longer contact than a stick; timbales with sticks, with a ringing metal shell.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="percussion">Percussion</h2>
-<p>The black keys of the percussion octave: cowbell, claves, wood block, and the muted and open triangle. In the GM map, the two agogo bells and the low wood block too. These are struck bells, bars and blocks, each with its own series of modes; the triangle is a bent steel rod.</p>
+<p>The <strong>muted conga</strong> is the open conga with the hand left
+on the head: it's gone within about a tenth of a second, whatever Ring
+is set to. Congas and bongos are played with the hand, a softer, longer
+contact than a stick; timbales with sticks, with a ringing metal
+shell.</p>
+</section>
+<section id="percussion" class="callout callout-note card">
+<h2>Percussion</h2>
+<p>The black keys of the percussion octave: cowbell, claves, wood block,
+and the muted and open triangle. In the GM map, the two agogo bells and
+the low wood block too. These are struck bells, bars and blocks, each
+with its own series of modes; the triangle is a bent steel rod.</p>
 <ul>
-<li><strong>Tune</strong>: the size of all of them together, from 5 semitones down to 5 semitones up.</li>
-<li><strong>Decay</strong>: how long all of them ring, from half to twice their natural ring.</li>
+<li><strong>Tune</strong>: the size of all of them together, from 5
+semitones down to 5 semitones up.</li>
+<li><strong>Decay</strong>: how long all of them ring, from half to
+twice their natural ring.</li>
 </ul>
-<p>The muted triangle stops a ringing open one, as a hand closing on it does.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="master">Master</h2>
+<p>The muted triangle stops a ringing open one, as a hand closing on it
+does.</p>
+</section>
+<section id="master" class="callout callout-note card">
+<h2>Master</h2>
 <ul>
-<li><strong>Level</strong>: the output level of the whole kit, from silence (0.00) to twice the default (2.00). Default 1.00. At 1.00, full-velocity hits peak just under full scale.</li>
-<li><strong>Map</strong>: which note plays which drum, <strong>StruckKit</strong> or <strong>GM</strong> (see <a href="#kit">The Kit</a>). The legend changes to match.</li>
-<li><strong>Voices</strong>: how many drums can sound at once: <strong>10</strong>, <strong>16</strong> (the default), <strong>20</strong> or <strong>32</strong>. Past that, the oldest one still ringing is cut off for the new hit. 16 is enough for rolls under ringing crashes; raise it if long cymbals get cut short in busy parts.</li>
+<li><strong>Level</strong>: the output level of the whole kit, from
+silence (0.00) to twice the default (2.00). Default 1.00. At 1.00,
+full-velocity hits peak just under full scale.</li>
+<li><strong>Map</strong>: which note plays which drum,
+<strong>StruckKit</strong> or <strong>GM</strong> (see <a
+href="#kit">The Kit</a>). The legend changes to match.</li>
+<li><strong>Voices</strong>: how many drums can sound at once:
+<strong>10</strong>, <strong>16</strong> (the default),
+<strong>20</strong> or <strong>32</strong>. Past that, the oldest one
+still ringing is cut off for the new hit. 16 is enough for rolls under
+ringing crashes; raise it if long cymbals get cut short in busy
+parts.</li>
 </ul>
-<p>The <strong>kick</strong> (C and D in the kit octave) has no controls of its own; only Level affects it. Kick 2 is higher and tighter than Kick.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="midi">MIDI</h2>
-<p>StruckKit has one note input, which takes <strong>MIDI 1.0 and MIDI 2.0</strong>, and prefers MIDI 2.0.</p>
+<p>The <strong>kick</strong> (C and D in the kit octave) has no controls
+of its own; only Level affects it. Kick 2 is higher and tighter than
+Kick.</p>
+</section>
+<section id="midi" class="callout callout-note card">
+<h2>MIDI</h2>
+<p>StruckKit has one note input, which takes <strong>MIDI 1.0 and MIDI
+2.0</strong>, and prefers MIDI 2.0.</p>
 <ul>
 <li><strong>Every channel</strong> plays the kit.</li>
-<li><strong>Note on</strong> strikes a drum. <strong>Velocity</strong> sets how hard: it changes the tone as well as the level. With MIDI 2.0, velocity has 16-bit resolution instead of 7-bit.</li>
-<li><strong>Note off</strong> is ignored: every drum rings out on its own (or until it's choked or its voice is taken by a newer hit).</li>
+<li><strong>Note on</strong> strikes a drum. <strong>Velocity</strong>
+sets how hard: it changes the tone as well as the level. With MIDI 2.0,
+velocity has 16-bit resolution instead of 7-bit.</li>
+<li><strong>Note off</strong> is ignored: every drum rings out on its
+own (or until it's choked or its voice is taken by a newer hit).</li>
 <li>Controllers, pitch bend and pressure have no effect.</li>
 </ul>
-<p>Notes and knob changes take effect at their exact sample position within the host's buffer, not at the start of the buffer.</p>
-<p>Every control is a plugin parameter, so the host can automate it. The host sees the drum knobs as 0 to 1, as the panel shows them.</p>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="presets">Presets</h2>
-<p>The <strong>Preset</strong> menu, top right, lists the factory presets. It shows <strong>--</strong> until you pick one. Choosing a preset sets every control it has a value for; any it doesn't mention keep their current values.</p>
-<p>There is one factory preset so far, <strong>Init</strong>: every control at its default, with the StruckKit map. It doesn't set Voices.</p>
-<p><strong>Your own kits:</strong> <strong>Save</strong> and <strong>Load</strong>, left of Help, write the kit to a file and read one back, through the system's file dialog. The first time, the dialog opens on <strong>Documents/StruckKit</strong>; after that, on the last folder you used.</p>
+<p>Notes and knob changes take effect at their exact sample position
+within the host's buffer, not at the start of the buffer.</p>
+<p>Every control is a plugin parameter, so the host can automate it. The
+host sees the drum knobs as 0 to 1, as the panel shows them.</p>
+</section>
+<section id="presets" class="callout callout-note card">
+<h2>Presets</h2>
+<p>The <strong>Preset</strong> menu, top right, lists the factory
+presets. It shows <strong>--</strong> until you pick one. Choosing a
+preset sets every control it has a value for; any it doesn't mention
+keep their current values.</p>
+<p>There is one factory preset so far, <strong>Init</strong>: every
+control at its default, with the StruckKit map. It doesn't set
+Voices.</p>
+<p><strong>Your own kits:</strong> <strong>Save</strong> and
+<strong>Load</strong>, left of Help, write the kit to a file and read
+one back, through the system's file dialog. The first time, the dialog
+opens on <strong>Documents/StruckKit</strong>; after that, on the last
+folder you used.</p>
 <ul>
-<li>A saved kit has every control, Voices included. Loading one sets every control the file has a value for.</li>
-<li>The menu then shows the kit's name, dimmed, in place of a factory preset's.</li>
-<li>The file is the same JSON as the factory presets, so a kit you save can be put in the source's <code>Presets</code> folder to build it in as a factory preset.</li>
-<li>The host still saves every control with its project, whether or not you saved it to a file.</li>
+<li>A saved kit has every control, Voices included. Loading one sets
+every control the file has a value for.</li>
+<li>The menu then shows the kit's name, dimmed, in place of a factory
+preset's.</li>
+<li>The file is the same JSON as the factory presets, so a kit you save
+can be put in the source's <code>Presets</code> folder to build it in as
+a factory preset.</li>
+<li>The host still saves every control with its project, whether or not
+you saved it to a file.</li>
 </ul>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="tips">Tips</h2>
+</section>
+<section id="tips" class="callout callout-note card">
+<h2>Tips</h2>
 <ul>
-<li><strong>Play with velocity.</strong> The models respond to it in tone as well as level, so a pattern with varied velocities sounds much more like a drummer than one at a fixed velocity.</li>
-<li><strong>Thin crashes and hard hits</strong> give the biggest wash. For a cleaner, more controlled crash, turn Thin down or play softer.</li>
-<li><strong>Stroke toward the right</strong> turns a crash into a ride-like ping, which is useful with the StruckKit map, which has no ride.</li>
-<li><strong>For a dead, punchy tom</strong>, turn Ring down and Reso away from the middle. For a long, singing tom, Ring up and Reso near the middle.</li>
+<li><strong>Play with velocity.</strong> The models respond to it in
+tone as well as level, so a pattern with varied velocities sounds much
+more like a drummer than one at a fixed velocity.</li>
+<li><strong>Thin crashes and hard hits</strong> give the biggest wash.
+For a cleaner, more controlled crash, turn Thin down or play
+softer.</li>
+<li><strong>Stroke toward the right</strong> turns a crash into a
+ride-like ping, which is useful with the StruckKit map, which has no
+ride.</li>
+<li><strong>For a dead, punchy tom</strong>, turn Ring down and Reso
+away from the middle. For a long, singing tom, Ring up and Reso near the
+middle.</li>
 <li><strong>A snare without wires</strong>: Wires all the way down.</li>
-<li><strong>Retune the hand drums to the song.</strong> Each family's knob keeps its drums' intervals, so one knob moves a whole set of congas or bongos.</li>
-<li><strong>Two crashes, two sizes.</strong> Size 1 and Size 2 are independent, so you can have a large dark crash and a small bright one.</li>
+<li><strong>Retune the hand drums to the song.</strong> Each family's
+knob keeps its drums' intervals, so one knob moves a whole set of congas
+or bongos.</li>
+<li><strong>Two crashes, two sizes.</strong> Size 1 and Size 2 are
+independent, so you can have a large dark crash and a small bright
+one.</li>
 </ul>
-</div>
-</div>
-<div class="callout callout-note card">
-<div class="callout-content">
-<h2 id="troubleshooting">Troubleshooting</h2>
+</section>
+<section id="troubleshooting" class="callout callout-note card">
+<h2>Troubleshooting</h2>
 <ul>
-<li><strong>Some notes are silent.</strong> Check <strong>Map</strong>. A GM drum pattern played through the StruckKit map (or the other way round) lands on the wrong drums or on notes the map leaves silent. In the GM map, unmodelled percussion (clap, tambourine and so on) is silent.</li>
-<li><strong>A drum plays, but not the one you expected.</strong> Look at the legend at the top of the panel: it always shows the current map.</li>
-<li><strong>Cymbals cut off in busy passages.</strong> All the voices are in use, and the oldest is being taken for new hits. Raise <strong>Voices</strong>.</li>
-<li><strong>The open hi-hat stops early.</strong> Another hi-hat hit chokes it, as on a real kit. The same goes for the open triangle and the muted one.</li>
-<li><strong>The kick doesn't respond to any knob.</strong> It has none; only Level affects it.</li>
+<li><strong>Some notes are silent.</strong> Check <strong>Map</strong>.
+A GM drum pattern played through the StruckKit map (or the other way
+round) lands on the wrong drums or on notes the map leaves silent. In
+the GM map, unmodelled percussion (clap, tambourine and so on) is
+silent.</li>
+<li><strong>A drum plays, but not the one you expected.</strong> Look at
+the legend at the top of the panel: it always shows the current
+map.</li>
+<li><strong>Cymbals cut off in busy passages.</strong> All the voices
+are in use, and the oldest is being taken for new hits. Raise
+<strong>Voices</strong>.</li>
+<li><strong>The open hi-hat stops early.</strong> Another hi-hat hit
+chokes it, as on a real kit. The same goes for the open triangle and the
+muted one.</li>
+<li><strong>The kick doesn't respond to any knob.</strong> It has none;
+only Level affects it.</li>
 </ul>
-</div>
-</div>
+</section>
 </div>
 </body>
 </html>

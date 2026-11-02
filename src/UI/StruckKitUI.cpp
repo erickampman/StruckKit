@@ -354,6 +354,7 @@ public:
         fPresetDropdown->setIndex(-1); // no preset selected until the user picks one
 
         fHelpButton = std::make_unique<HelpButton>(this, [] { openHelp(); });
+        fHelpButton->setLabel("Help");
 
         // Save / Load the patch as a preset file (PresetFile.hpp), through the system file dialog.
         fSaveButton = std::make_unique<HeaderButton>(this, "Save", [this] { browseForPreset(true); });
@@ -641,15 +642,15 @@ private:
         fPresetDropdown->setSize(static_cast<uint>(presetW), static_cast<uint>(presetH));
         fPresetDropdown->setAbsolutePos(W - M - presetW, static_cast<int>(4 * s));
 
-        // Help "?" just left of the preset selector, centred on the header's title line.
-        const int helpD = static_cast<int>(26 * s);
+        // Help, just left of the Preset menu, captioned and boxed the same way.
+        const int helpW = static_cast<int>(44 * s);
         fHelpButton->setUiScale(s);
-        fHelpButton->setSize(static_cast<uint>(helpD), static_cast<uint>(helpD));
-        fHelpButton->setAbsolutePos(W - M - presetW - gap - helpD, static_cast<int>(26 * s) - helpD / 2);
+        fHelpButton->setSize(static_cast<uint>(helpW), static_cast<uint>(presetH));
+        fHelpButton->setAbsolutePos(W - M - presetW - helpW, static_cast<int>(4 * s));
 
-        // Save and Load, left of Help, their boxes level with the Preset menu's.
+        // Save and Load, left of Help, their boxes level with the others'.
         const int fileW = static_cast<int>(52 * s);
-        const int loadX = W - M - presetW - gap - helpD - gap - fileW;
+        const int loadX = W - M - presetW - helpW - fileW;
         fLoadButton->setUiScale(s);
         fLoadButton->setSize(static_cast<uint>(fileW), static_cast<uint>(presetH));
         fLoadButton->setAbsolutePos(loadX, static_cast<int>(4 * s));
