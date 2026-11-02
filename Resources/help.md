@@ -27,7 +27,7 @@ Every drum except the kick is a **physical model**. Instead of playing back samp
 - **Crashes, ride and hi-hats** are bronze plates with around a thousand modes. Hard hits on thin cymbals spread their energy upward into a wash, as real ones do. The hi-hats are the same plate with a second cymbal underneath, touching it or not.
 - **Congas, bongos and timbales** are single-headed drums open at the bottom. The timbales' metal shells ring too.
 - **Cowbell, agogo, claves, wood blocks and triangle** are struck bells, bars and blocks, each with its own series of modes.
-- **The kick** is a swept sine with a beater click. It isn't modelled yet and has no controls.
+- **The kick** is a swept sine with a beater click. It isn't a physical model and has no controls; only Level affects it.
 
 Because the drums are models, **velocity changes the sound, not just the level**: a soft hit is a longer contact, which darkens the tone, and a hard hit on a tom or hand drum starts slightly sharp and settles, as a real head does. The knobs are physical too: a cymbal's diameter, a head's tension, where the stick lands.
 
@@ -238,5 +238,5 @@ There is one factory preset so far, **Init**: every control at its default, with
 - **A drum plays, but not the one you expected.** Look at the legend at the top of the panel: it always shows the current map.
 - **Cymbals cut off in busy passages.** All the voices are in use, and the oldest is being taken for new hits. Raise **Voices**.
 - **The open hi-hat stops early.** Another hi-hat hit chokes it, as on a real kit. The same goes for the open triangle and the muted one.
-- **The kick doesn't respond to any knob.** It has none yet; only Level affects it.
+- **The kick doesn't respond to any knob.** It has none; only Level affects it.
 ~~~
