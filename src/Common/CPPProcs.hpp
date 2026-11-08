@@ -39,21 +39,13 @@ static inline double panValue(double x)
 	return cos(M_PI_2 * (.5 * x + .5));
 }
 
+// Keeps x only when its magnitude lies in (1e-15, 1e15); anything else becomes 0. That flushes
+// denormals and tiny values at the low end, infinities at the high end, and NaN, for which
+// both comparisons are false. Zero maps to zero either way.
 static inline float convertBadValuesToZero(float x) {
-	/*
-	 Eliminate denormals, not-a-numbers, and infinities.
-	 Denormals will fail the first test (absx > 1e-15), infinities will fail
-	 the second test (absx < 1e15), and NaNs will fail both tests. Zero will
-	 also fail both tests, but since it will get set to zero that is OK.
-	 */
-
-	float absx = fabs(x);
-
-	if (absx > 1e-15 && absx < 1e15) {
-		return x;
-	}
-
-	return 0.0;
+	const float magnitude = std::fabs(x);
+	const bool inRange = magnitude > 1e-15 && magnitude < 1e15;
+	return inRange ? x : 0.0f;
 }
 
 static inline double squared(double x) {
