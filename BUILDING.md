@@ -46,7 +46,7 @@ AUv2 editor draw: clap-wrapper's AUv2 view never calls `gui->show()` without it,
 blank.
 
 uw-core (`external/uw-core`) is built UMP-only (`UW_CORE_UMP_ONLY`), so no JACK, ALSA, CoreAudio or
-CoreMIDI is needed. While the repos are private, cloning needs access to `erickampman/uw-core`.
+CoreMIDI is needed.
 
 ## Build and test
 
