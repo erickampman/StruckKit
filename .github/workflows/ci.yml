@@ -27,16 +27,6 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}   # uw-core, dpf and pugl are private
-      # fetch_deps.sh's own `git submodule` clones don't get checkout's token, so hand it to git
-      # for the private repos (uw-core, dpf and its pugl).
-      - name: Credentials for the private submodules
-        env:
-          SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
-        run: |
-          git config --global url."https://x-access-token:${SUBMODULES_TOKEN}@github.com/erickampman/".insteadOf \
-            "https://github.com/erickampman/"
       # Pinned submodules, only the four vst3sdk submodules the build needs, then patches/.
       - name: Fetch pinned dependency submodules
         run: tools/fetch_deps.sh
