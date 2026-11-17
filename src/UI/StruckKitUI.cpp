@@ -36,9 +36,7 @@
 #include "GroupBox.hpp"
 #include "HeaderButton.hpp"
 #include "HelpButton.hpp"
-#if !defined(DISTRHO_OS_MAC) && !defined(DISTRHO_OS_WINDOWS)
-#include "uw/base/HelpServer.h"   // uw-core: help over loopback on Linux
-#endif
+#include "uw/dgl/HelpWindow.hpp"   // uw-core: the help page in its own window
 #include "Knob.hpp"
 #include "Logo.hpp"
 #include "OpenExternal.hpp"
@@ -599,40 +597,13 @@ protected:
 #endif
 
 private:
-    // The help page is embedded (Resources/help.html), so it can't be pointed at in place: write it,
-    // plus the logo it references as "Unlikelyware.png", to a temp folder and open that in the
-    // default browser. Rewritten on every click so it always matches this build.
+    // The help page (Resources/help.md, embedded with the logo it shows) in a window of the plugin's
+    // own: uw-core's HelpWindow, with no browser, server or files.
     void openHelp()
     {
-#if !defined(DISTRHO_OS_MAC) && !defined(DISTRHO_OS_WINDOWS)
-        // Linux: served over loopback (uw-core's HelpServer), not written to /tmp,
-        // as a snap or Flatpak browser can't read the real /tmp.
-        fHelpServer.open({
-            {"help.html", std::string(reinterpret_cast<const char*>(EmbeddedResources::helpData),
-                                      EmbeddedResources::helpDataSize)},
-            {"Unlikelyware.png",
-             std::string(reinterpret_cast<const char*>(EmbeddedResources::Unlikelyware_Final_ColorData),
-                         EmbeddedResources::Unlikelyware_Final_ColorDataSize)},
-        });
-        return;
-#endif
-        namespace fs = std::filesystem;
-        std::error_code ec;
-        const fs::path dir = fs::temp_directory_path(ec) / "StruckKit-Help";
-        if (ec) return;
-        fs::create_directories(dir, ec);
-        if (ec) return;
-
-        auto write = [&](const char* name, const unsigned char* data, unsigned int size) {
-            std::ofstream out(dir / name, std::ios::binary | std::ios::trunc);
-            out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
-            return static_cast<bool>(out);
-        };
-        write("Unlikelyware.png", EmbeddedResources::Unlikelyware_Final_ColorData,
-              EmbeddedResources::Unlikelyware_Final_ColorDataSize);
-        if (!write("help.html", EmbeddedResources::helpData, EmbeddedResources::helpDataSize))
-            return;
-        openExternal((dir / "help.html").string());
+        fHelp.open(*this, "StruckKit Help", EmbeddedResources::helpData, EmbeddedResources::helpDataSize,
+                   {{"Unlikelyware.png", EmbeddedResources::Unlikelyware_Final_ColorData,
+                     EmbeddedResources::Unlikelyware_Final_ColorDataSize}});
     }
 
     void layout()
@@ -811,9 +782,7 @@ private:
     std::unique_ptr<Logo>          fLogo;
     std::unique_ptr<Dropdown>      fPresetDropdown;
     std::unique_ptr<HelpButton>    fHelpButton;
-#if !defined(DISTRHO_OS_MAC) && !defined(DISTRHO_OS_WINDOWS)
-    uw::HelpServer fHelpServer;   // openHelp()'s, while the editor is open
-#endif
+    DGL_NAMESPACE::uwhelp::HelpOpener fHelp;   // the help window, while the editor is open
     std::unique_ptr<HeaderButton>  fSaveButton, fLoadButton;
     Browse                         fBrowsing = Browse::None;
     std::string                    fPatchName;          // the saved / loaded patch, "" for none yet

@@ -143,10 +143,11 @@ add_custom_target(generate_presets DEPENDS "${STRUCKKIT_GENERATED_PRESETS_H}")
 # on the resource file once built — same reasoning as the preset codegen above.
 set(STRUCKKIT_RESOURCES_HPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.hpp")
 set(STRUCKKIT_RESOURCES_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedResources.cpp")
-# res2c embeds a whole folder and names symbols by basename without extension, so help.md (the
-# authoring source for help.html) would collide with help.html. Stage everything but *.md.
+# res2c.py embeds a whole folder and names each symbol by the file's stem, so help.html (help.md made
+# into a web page, for the site) would collide with help.md, which the plugin's help window reads.
+# Copy everything but help.html into a staging folder first.
 file(GLOB STRUCKKIT_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Resources/*")
-list(FILTER STRUCKKIT_RESOURCE_FILES EXCLUDE REGEX "\\.md$")
+list(FILTER STRUCKKIT_RESOURCE_FILES EXCLUDE REGEX "\\.html$")
 set(STRUCKKIT_RESOURCES_STAGE "${CMAKE_BINARY_DIR}/resources-staged")
 add_custom_command(
     OUTPUT "${STRUCKKIT_RESOURCES_HPP}" "${STRUCKKIT_RESOURCES_CPP}"

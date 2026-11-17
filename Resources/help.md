@@ -99,7 +99,7 @@ The ride, ride bell, agogos and low wood block are only in the GM map, and the h
 
 ::: {.callout .callout-note .card}
 ## The Panel {#panel}
-**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title (*StruckKit, modal drum kit*), and on the right **Save** and **Load** (see [Presets](#presets)), **Help** (a **?** box captioned Help, which opens this page in your web browser) and the **Preset** menu.
+**Across the top:** the Unlikelyware logo (click it to open unlikelyware.com), the title (*StruckKit, modal drum kit*), and on the right **Save** and **Load** (see [Presets](#presets)), **Help** (a **?** box captioned Help, which opens this page in a window of its own) and the **Preset** menu.
 
 **The legend** under it shows which key plays which drum for the current map. With the StruckKit map it draws the kit octave and the percussion octave as two keyboards; with GM it lists the note numbers by drum. Keys and names are coloured by drum family, matching the panels below. A line along its foot reminds you which drums choke each other.
 

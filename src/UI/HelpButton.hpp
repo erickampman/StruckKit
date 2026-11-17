@@ -1,6 +1,6 @@
 // HelpButton.hpp — a "?" box with a caption above it, styled like Dropdown so the two sit together
 // in the header (the same button as the other Unlikelyware plugins). A click runs the caller's
-// action (StruckKitUI opens the embedded help page in the default browser). Like the other custom
+// action (StruckKitUI opens the embedded help page in a window of its own). Like the other custom
 // widgets it bounds-checks onMouse (DPF offers the event to every sibling).
 
 #ifndef STRUCKKIT_HELP_BUTTON_HPP
