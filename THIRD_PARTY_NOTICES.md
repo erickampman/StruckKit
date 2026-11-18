@@ -5,7 +5,7 @@ StruckKit is MIT licensed (see the LICENSE file). Its plugins contain the compon
 | Component | Version | License | Used for |
 |---|---|---|---|
 | [CLAP](https://github.com/free-audio/clap) | 1.2.9 | MIT | the plugin API headers |
-| [clap-wrapper](https://github.com/free-audio/clap-wrapper) | v0.16.0 | MIT | builds the VST3 and AUv2 plugins from the CLAP one |
+| [clap-wrapper, Unlikelyware's fork](https://github.com/erickampman/clap-wrapper) | v0.16.0 + `unlikelyware` branch | MIT | builds the VST3 and AUv2 plugins from the CLAP one |
 | [VST3 SDK](https://github.com/steinbergmedia/vst3sdk) | v3.8.0_build_66 | MIT | the VST3 plugin (through clap-wrapper) |
 | [AudioUnitSDK](https://github.com/apple/AudioUnitSDK) | 1.1.0 | Apache-2.0 | the AUv2 plugin on macOS; clap-wrapper downloads it when configuring |
 | [DPF (DISTRHO Plugin Framework), Unlikelyware's fork](https://github.com/erickampman/DPF) | 02449d69 | ISC | the plugin window (its DGL library only) |
